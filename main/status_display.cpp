@@ -39,6 +39,20 @@ static const char *TAG = "status_display";
 
 StatusDisplay StatusDisplay::sStatusDisplay;
 
+static SemaphoreHandle_t panel_refreshing_sem = NULL;
+
+IRAM_ATTR bool epaper_flush_ready_callback(const esp_lcd_panel_handle_t handle, const void *edata, void *user_data)
+{
+    //lv_display_t *disp_driver = (lv_display_t *) user_data;
+    //lv_disp_flush_ready(disp_driver);
+    // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    // xSemaphoreGiveFromISR(panel_refreshing_sem, &xHigherPriorityTaskWoken);
+    // if (xHigherPriorityTaskWoken == pdTRUE) {
+         return true;
+    // }
+    // return false;
+}
+
 esp_err_t StatusDisplay::Init()
 {
     ESP_LOGI(TAG, "StatusDisplay::Init()");
@@ -119,13 +133,17 @@ esp_err_t StatusDisplay::Init()
     const lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
     lvgl_port_init(&lvgl_cfg);
 
-    ESP_LOGI(TAG, "LVGL");
+    // Stop the LVGL timer, which writes to the buffer and flushes automatically.
+    //
+    //lvgl_port_stop();
+
+    ESP_LOGI(TAG, "Create LVGL Display");
 
     const lvgl_port_display_cfg_t disp_cfg = {
         .io_handle = io_handle,
         .panel_handle = mPanelHandle,
         .buffer_size = LCD_H_RES * LCD_V_RES,
-        .double_buffer = true,
+        .double_buffer = false,
         .trans_size = 1024,
         .hres = LCD_H_RES,
         .vres = LCD_V_RES,
@@ -139,6 +157,13 @@ esp_err_t StatusDisplay::Init()
         .flags = {.buff_dma = false, .buff_spiram = true, .full_refresh = true}};
 
     mDisplayHandle = lvgl_port_add_disp(&disp_cfg);
+
+    epaper_panel_callbacks_t cbs = {
+        .on_epaper_refresh_done = epaper_flush_ready_callback
+    };
+    epaper_panel_register_event_callbacks(mPanelHandle, &cbs, &mDisplayHandle);
+
+    ESP_LOGI(TAG, "Create LVGL Screen");
 
     lv_obj_t *scr = lv_scr_act();
 
@@ -172,6 +197,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_align(mModeLabel, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_set_style_text_color(mModeLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_add_style(mModeLabel, &style, LV_PART_MAIN);
+        lv_obj_set_style_pad_left(mModeLabel, 20, LV_PART_MAIN);
 
     mStatusLabel = lv_label_create(scr);
 
@@ -253,14 +279,14 @@ esp_err_t StatusDisplay::Init()
 
 void StatusDisplay::TurnOn()
 {
-    ESP_LOGI(TAG, "Turning display on");
-    esp_lcd_panel_disp_on_off(mPanelHandle, true);
+    //ESP_LOGI(TAG, "Turning display on");
+    //esp_lcd_panel_disp_on_off(mPanelHandle, true);
 }
 
 void StatusDisplay::TurnOff()
 {
-    ESP_LOGI(TAG, "Turning display off");
-    esp_lcd_panel_disp_on_off(mPanelHandle, false);
+    //ESP_LOGI(TAG, "Turning display off");
+    //esp_lcd_panel_disp_on_off(mPanelHandle, false);
 }
 
 void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, int32_t startsIn, const char *state_text, const char *mode_text, const char *status_text)
@@ -277,7 +303,7 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
     if (showingMenu)
     {
-        ESP_LOGI(TAG, "Showing the menu: hasOptedIn=%d", hasOptedIn);
+        ESP_LOGI(TAG, "Showing the menu");
 
         lv_label_set_text(mMenuButtonLabel, "EXIT");
         lv_obj_clear_flag(mMenuHeaderLabel, LV_OBJ_FLAG_HIDDEN);
@@ -370,6 +396,8 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
             lv_label_set_text(mStatusLabel, status_text);
         }
     }
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }

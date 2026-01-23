@@ -166,13 +166,16 @@ extern "C" void app_main()
     esp_matter::cluster::operational_state::command::create_pause(operational_state_cluster);
     esp_matter::cluster::operational_state::command::create_resume(operational_state_cluster);
 
-
+    // Add the DishwasherMode cluster.
+    //
     static DishwasherModeDelegate dish_washer_mode_delegate;
 
     esp_matter::cluster::dish_washer_mode::config_t dish_washer_mode_config;
 
-    dish_washer_mode_config.delegate = &dish_washer_mode_delegate;
-    dish_washer_mode_config.current_mode = DishwasherMode::ModeHeavy; // Set the initial mode
+    // Setting the delegate this way doesn't work.
+    //
+    //dish_washer_mode_config.delegate = &dish_washer_mode_delegate;
+    dish_washer_mode_config.current_mode = DishwasherMode::ModeNormal; 
 
     esp_matter::cluster_t *dish_washer_mode_cluster = esp_matter::cluster::dish_washer_mode::create(endpoint, &dish_washer_mode_config, CLUSTER_FLAG_SERVER);
     ABORT_APP_ON_FAILURE(dish_washer_mode_cluster != nullptr, ESP_LOGE(TAG, "Failed to create dishwashermode cluster"));
@@ -196,15 +199,12 @@ extern "C" void app_main()
      * Add DeviceEnergyManagement
      */
     esp_matter::endpoint::device_energy_management::config_t device_energy_management_config;
+    //device_energy_management_config.device_energy_management.feature_flags = esp_matter::cluster::device_energy_management::feature::power_forecast_reporting::get_id() | esp_matter::cluster::device_energy_management::feature::start_time_adjustment::get_id();
     device_energy_management_config.device_energy_management.delegate = &device_energy_management_delegate;
-    
-    endpoint_t *device_energy_management_endpoint = esp_matter::endpoint::device_energy_management::create(node, &device_energy_management_config, ENDPOINT_FLAG_NONE, ESP_MATTER_NONE_FEATURE_ID);
+
+    endpoint_t *device_energy_management_endpoint = esp_matter::endpoint::device_energy_management::create(node, &device_energy_management_config, ENDPOINT_FLAG_NONE, NULL);
     ABORT_APP_ON_FAILURE(device_energy_management_endpoint != nullptr, ESP_LOGE(TAG, "Failed to create device energy management endpoint"));
 
-    esp_matter::cluster_t *device_energy_management_cluster = esp_matter::cluster::get(device_energy_management_endpoint, chip::app::Clusters::DeviceEnergyManagement::Id);
-    esp_matter::cluster::device_energy_management::feature::power_forecast_reporting::add(device_energy_management_cluster);
-    esp_matter::cluster::device_energy_management::feature::start_time_adjustment::add(device_energy_management_cluster);
-    
     device_energy_manager_endpoint_id = endpoint::get_id(device_energy_management_endpoint);
     ESP_LOGI(TAG, "Device Energy Manager created with endpoint_id %d", device_energy_manager_endpoint_id);
 

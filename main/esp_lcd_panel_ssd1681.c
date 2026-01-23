@@ -68,7 +68,10 @@ static esp_err_t epaper_panel_disp_on_off(esp_lcd_panel_t *panel, bool on_off);
 
 static void epaper_driver_gpio_isr_handler(void *arg)
 {
+    // ESP_LOGI(TAG, "Busy has been cleared");
+
     epaper_panel_t *epaper_panel = arg;
+
     // --- Disable ISR handling
     gpio_intr_disable(epaper_panel->busy_gpio_num);
 
@@ -77,6 +80,16 @@ static void epaper_driver_gpio_isr_handler(void *arg)
     {
         (epaper_panel->epaper_refresh_done_isr_callback.callback_ptr)(&(epaper_panel->base), NULL, epaper_panel->epaper_refresh_done_isr_callback.args);
     }
+}
+
+esp_err_t epaper_panel_register_event_callbacks(esp_lcd_panel_t *panel, epaper_panel_callbacks_t *cbs, void *user_ctx)
+{
+    ESP_RETURN_ON_FALSE(panel, ESP_ERR_INVALID_ARG, TAG, "panel handler is NULL");
+    ESP_RETURN_ON_FALSE(cbs, ESP_ERR_INVALID_ARG, TAG, "cbs is NULL");
+    epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
+    (epaper_panel->epaper_refresh_done_isr_callback).callback_ptr = cbs->on_epaper_refresh_done;
+    (epaper_panel->epaper_refresh_done_isr_callback).args = user_ctx;
+    return ESP_OK;
 }
 
 static esp_err_t panel_epaper_wait_busy(esp_lcd_panel_t *panel)
@@ -105,21 +118,17 @@ esp_err_t epaper_panel_refresh_screen(esp_lcd_panel_t *panel)
     ESP_RETURN_ON_FALSE(panel, ESP_ERR_INVALID_ARG, TAG, "panel handler is NULL");
     epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
 
-    // --- Enable refresh done handler isr
-    gpio_intr_enable(epaper_panel->busy_gpio_num);
-
     ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(epaper_panel->io, SSD1681_CMD_SET_DISP_UPDATE_CTRL, (uint8_t[]){0xC7}, 1), TAG, "SSD1681_CMD_SET_DISP_UPDATE_CTRL err");
 
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(epaper_panel->io, SSD1681_CMD_ACTIVE_DISP_UPDATE_SEQ, NULL, 0), TAG, "SSD1681_CMD_ACTIVE_DISP_UPDATE_SEQ err");
+    gpio_intr_enable(epaper_panel->busy_gpio_num);
 
-    panel_epaper_wait_busy(panel);
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(epaper_panel->io, SSD1681_CMD_ACTIVE_DISP_UPDATE_SEQ, NULL, 0), TAG, "SSD1681_CMD_ACTIVE_DISP_UPDATE_SEQ err");
 
     return ESP_OK;
 }
 
 esp_err_t
-esp_lcd_new_panel_ssd1681(const esp_lcd_panel_io_handle_t io, const esp_lcd_panel_dev_config_t *const panel_dev_config,
-                          esp_lcd_panel_handle_t *const ret_panel)
+esp_lcd_new_panel_ssd1681(const esp_lcd_panel_io_handle_t io, const esp_lcd_panel_dev_config_t *const panel_dev_config, esp_lcd_panel_handle_t *const ret_panel)
 {
 #if CONFIG_LCD_ENABLE_DEBUG_LOG
     esp_log_level_set(TAG, ESP_LOG_DEBUG);
@@ -183,8 +192,8 @@ esp_lcd_new_panel_ssd1681(const esp_lcd_panel_io_handle_t io, const esp_lcd_pane
         io_conf.intr_type = GPIO_INTR_NEGEDGE;
         ESP_LOGI(TAG, "Add handler for GPIO %d", epaper_panel->busy_gpio_num);
         ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "configure GPIO for BUSY line err");
-        ESP_GOTO_ON_ERROR(gpio_isr_handler_add(epaper_panel->busy_gpio_num, epaper_driver_gpio_isr_handler, epaper_panel),
-                          err, TAG, "configure GPIO for BUSY line err");
+        ESP_GOTO_ON_ERROR(gpio_isr_handler_add(epaper_panel->busy_gpio_num, epaper_driver_gpio_isr_handler, epaper_panel), err, TAG, "configure GPIO for BUSY line err");
+
         // Enable GPIO intr only before refreshing, to avoid other commands caused intr trigger
         gpio_intr_disable(epaper_panel->busy_gpio_num);
     }
@@ -291,7 +300,7 @@ static esp_err_t epaper_panel_draw_bitmap(esp_lcd_panel_t *panel, int x_start, i
     epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
     if (gpio_get_level(epaper_panel->busy_gpio_num))
     {
-        ESP_LOGI(TAG,"Panel is busy. Cannot refresh");
+        ESP_LOGI(TAG, "Panel is busy. Cannot refresh");
         return ESP_ERR_NOT_FINISHED;
     }
 
@@ -311,8 +320,8 @@ static esp_err_t epaper_panel_draw_bitmap(esp_lcd_panel_t *panel, int x_start, i
 
 static esp_err_t epaper_panel_disp_on_off(esp_lcd_panel_t *panel, bool on_off)
 {
-    epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
-    esp_lcd_panel_io_handle_t io = epaper_panel->io;
+    // epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
+    // esp_lcd_panel_io_handle_t io = epaper_panel->io;
 
     // if (on_off)
     // {
@@ -345,9 +354,8 @@ static esp_err_t process_bitmap(esp_lcd_panel_t *panel, int len_x, int len_y, in
 
     for (int i = 0; i < buffer_size * 8; i++)
     {
-        uint8_t bitmap_byte = ((uint8_t *)(color_data))[8 + i/8];
+        uint8_t bitmap_byte = ((uint8_t *)(color_data))[8 + i / 8];
 
-        //uint8_t is_black_pixel = ((bitmap_byte & 1) == 1);
         uint8_t is_black_pixel = bitmap_byte & (0x01 << (7 - (i % 8)));
 
         if (is_black_pixel)
@@ -359,29 +367,7 @@ static esp_err_t process_bitmap(esp_lcd_panel_t *panel, int len_x, int len_y, in
             white_pixel_count++;
         }
 
-        // uint8_t bitmap_byte = ((uint8_t *)(color_data))[i];
-        // uint8_t bitmap_pixel = bitmap_byte;
-
-        // uint8_t bitmap_byte = ((uint8_t *)(color_data))[i];
-
-        // ESP_LOGI(TAG, "color_data[%d]: %u", i, bitmap_byte);
-
-        // uint8_t bitmap_pixel = (bitmap_byte & (0x01 << (7 - (i % 8)))) ? 0x01 : 0x00;
-
-        int index = i / 8; // ((i * len_y / 8) % buffer_size) + (i / 8 / len_x);
-        //(epaper_panel->_framebuffer)[index] |= (bitmap_pixel << (7 - ((i / len_x) % 8)));
-
-        // uint16_t addr = x1 / 8 + y1 * (IMAGE_W / 8)
-
-        // ESP_LOGI(TAG,"PIXEL[%d,%d]: %s", index, i, bitmap_pixel == 0 ? "WHITE":"BLACK");
-
-        // if(bitmap_byte) {
-        //     ESP_LOGI(TAG,"DRAWING BLACK BIT IN BYTE [%d]", index);
-        //(epaper_panel->_framebuffer)[index] |= (bitmap_pixel << (7 - ((i / len_x) % 8)));
-        //(epaper_panel->_framebuffer)[((i * len_y / 8) % buffer_size) + (i / 8 / len_x)] |= (bitmap_pixel << (7 - ((i / len_x) % 8)));
-        //} else {
-        //(epaper_panel->_framebuffer)[index] = !bitmap_byte;
-        //}
+        int index = i / 8;
 
         uint8_t current = (epaper_panel->_framebuffer)[index];
 
@@ -395,7 +381,7 @@ static esp_err_t process_bitmap(esp_lcd_panel_t *panel, int len_x, int len_y, in
         }
     }
 
-    //ESP_LOGI(TAG, "Rendered %d black pixels and %d white pixels (total: %d)", black_pixel_count, white_pixel_count, black_pixel_count + white_pixel_count);
+    ESP_LOGI(TAG, "Rendered %d black pixels and %d white pixels (total: %d)", black_pixel_count, white_pixel_count, black_pixel_count + white_pixel_count);
 
     return ESP_OK;
 }

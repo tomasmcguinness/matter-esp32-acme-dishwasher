@@ -19,13 +19,13 @@ ModeSelector ModeSelector::sModeSelector;
 static void up_button_single_click_cb(void *args, void *user_data)
 {
     ESP_LOGI(TAG, "Up Clicked");
-    DishwasherMgr().SelectNextMode();
+    DishwasherMgr().SelectNext();
 }
 
 static void down_button_single_click_cb(void *args, void *user_data)
 {
     ESP_LOGI(TAG, "Down Clicked");
-    DishwasherMgr().SelectPreviousMode();
+    DishwasherMgr().SelectPrevious();
 }
 
 esp_err_t ModeSelector::Init()

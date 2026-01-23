@@ -121,26 +121,24 @@ OperationalState::OperationalStateDelegate *OperationalState::GetDelegate()
     return gOperationalStateDelegate;
 }
 
-void emberAfOperationalStateClusterInitCallback(chip::EndpointId endpointId)
-{
-    ESP_LOGI(TAG, "emberAfOperationalStateClusterInitCallback()");
+// void emberAfOperationalStateClusterInitCallback(chip::EndpointId endpointId)
+// {
+//     ESP_LOGI(TAG, "emberAfOperationalStateClusterInitCallback()");
 
-    VerifyOrDie(endpointId == 1); // this cluster is only enabled for endpoint 1.
-    VerifyOrDie(gOperationalStateInstance == nullptr && gOperationalStateDelegate == nullptr);
+//     VerifyOrDie(endpointId == 1); // this cluster is only enabled for endpoint 1.
+//     VerifyOrDie(gOperationalStateInstance == nullptr && gOperationalStateDelegate == nullptr);
 
-    gOperationalStateDelegate = new OperationalStateDelegate;
-    EndpointId operationalStateEndpoint = 0x01;
-    gOperationalStateInstance = new OperationalState::Instance(gOperationalStateDelegate, operationalStateEndpoint);
+//     gOperationalStateDelegate = new OperationalStateDelegate;
 
-    gOperationalStateInstance->SetOperationalState(to_underlying(OperationalState::OperationalStateEnum::kStopped));
-    gOperationalStateInstance->SetCurrentPhase(0);
+//     gOperationalStateInstance = new OperationalState::Instance(gOperationalStateDelegate, endpointId);
+//     gOperationalStateInstance->SetOperationalState(to_underlying(OperationalState::OperationalStateEnum::kStopped));
+//     gOperationalStateInstance->SetCurrentPhase(0);
+//     gOperationalStateInstance->Init();
 
-    gOperationalStateInstance->Init();
-
-    uint8_t value = to_underlying(OperationalStateEnum::kStopped);
-    gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::OperationalState::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), &value);
-    gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::CurrentPhase::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), 0);
-}
+//     uint8_t value = to_underlying(OperationalStateEnum::kStopped);
+//     gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::OperationalState::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), &value);
+//     gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::CurrentPhase::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), 0);
+// }
 
 void emberAfOperationalStateClusterShutdownCallback(chip::EndpointId endpointId)
 {
@@ -162,9 +160,7 @@ static ModeBase::Instance *gDishwasherModeInstance = nullptr;
 CHIP_ERROR DishwasherModeDelegate::Init()
 {
     ESP_LOGI(TAG, "DishwasherModeDelegate::Init()");
-    
     gDishwasherModeInstance = mInstance;
-
     return CHIP_NO_ERROR;
 }
 
@@ -280,14 +276,16 @@ void emberAfDishwasherModeClusterInitCallback(chip::EndpointId endpointId)
 
     VerifyOrDie(endpointId == 1); // this cluster is only enabled for endpoint 1.
     VerifyOrDie(gDishwasherModeDelegate == nullptr && gDishwasherModeInstance == nullptr);
+    
     gDishwasherModeDelegate = new DishwasherMode::DishwasherModeDelegate;
+
     // TODO Restore the deadfront support by setting the OnOff feature.
     // gDishwasherModeInstance = new ModeBase::Instance(gDishwasherModeDelegate, 0x1, DishwasherMode::Id, chip::to_underlying(chip::app::Clusters::DishwasherMode:: ::Feature::kOnOff));
+    
     gDishwasherModeInstance = new ModeBase::Instance(gDishwasherModeDelegate, endpointId, DishwasherMode::Id, 0);
     gDishwasherModeInstance->Init();
 
     uint8_t currentMode = gDishwasherModeInstance->GetCurrentMode();
-
     ESP_LOGI(TAG, "CurrentMode: %d", currentMode);
 }
 

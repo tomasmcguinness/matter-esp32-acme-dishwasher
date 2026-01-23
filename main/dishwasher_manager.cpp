@@ -253,9 +253,9 @@ void DishwasherManager::StartProgram()
         slot_count = 3;
     }
 
-    sForecastStruct.slots = DataModel::List<DeviceEnergyManagement::Structs::SlotStruct::Type>(sSlots, slot_count);
+    // sForecastStruct.slots = DataModel::List<DeviceEnergyManagement::Structs::SlotStruct::Type>(sSlots, slot_count);
 
-    SetForecast();
+    // SetForecast();
 }
 
 void DishwasherManager::AdjustStartTime(uint32_t new_start_time)
@@ -367,7 +367,11 @@ void DishwasherManager::UpdateDishwasherDisplay()
 
         delegate->GetModeLabelByIndex(mMode, label);
 
-        mode_text = mode_buffer;
+        ESP_LOGI(TAG, "Mode Size: %u", label.size());
+
+        mode_text = (char *)malloc(label.size());
+        memcpy(mode_text, label.data(), label.size());
+        mode_text[label.size()] = '\0';
     }
     else 
     {
@@ -401,6 +405,8 @@ void DishwasherManager::UpdateDishwasherDisplay()
     {
         free(status_formatted_buffer);
     }
+
+    free(mode_text);
 }
 
 void DishwasherManager::ProgressProgram()
@@ -541,6 +547,10 @@ void DishwasherManager::SelectNext()
         ESP_LOGI(TAG, "Opted into energy management: %d", mOptedIntoEnergyManagement);
         UpdateDishwasherDisplay();
     }
+    else
+    {
+        SelectNextMode();
+    }
 }
 
 void DishwasherManager::SelectPrevious()
@@ -570,6 +580,10 @@ void DishwasherManager::SelectPrevious()
 
         ESP_LOGI(TAG, "Opted into energy management: %d", mOptedIntoEnergyManagement);
         UpdateDishwasherDisplay();
+    }
+    else
+    {
+        SelectPreviousMode();
     }
 }
 
