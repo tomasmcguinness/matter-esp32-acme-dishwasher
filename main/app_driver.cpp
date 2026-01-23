@@ -142,6 +142,11 @@ void emberAfOperationalStateClusterInitCallback(chip::EndpointId endpointId)
     gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::CurrentPhase::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), 0);
 }
 
+void emberAfOperationalStateClusterShutdownCallback(chip::EndpointId endpointId)
+{
+    OperationalState::Shutdown();
+}
+
 //****************************
 //* DISHWASHER MODE DELEGATE *
 //****************************
@@ -157,7 +162,7 @@ static ModeBase::Instance *gDishwasherModeInstance = nullptr;
 CHIP_ERROR DishwasherModeDelegate::Init()
 {
     ESP_LOGI(TAG, "DishwasherModeDelegate::Init()");
-
+    
     gDishwasherModeInstance = mInstance;
 
     return CHIP_NO_ERROR;
@@ -222,7 +227,6 @@ Status DishwasherModeDelegate::SetDishwasherMode(uint8_t modeValue)
 
     // We can only update the DishwasherMode when it's not running.
     //
-
     VerifyOrReturnError(DishwasherMode::GetInstance() != nullptr, Status::InvalidInState);
 
     if (!DishwasherMode::GetInstance()->IsSupportedMode(modeValue))
@@ -481,8 +485,8 @@ esp_err_t app_driver_init()
     memset(&onoff_config, 0, sizeof(button_config_t));
 
     onoff_config.type = BUTTON_TYPE_GPIO;
-    onoff_config.gpio_button_config.gpio_num = GPIO_NUM_0;
-    onoff_config.gpio_button_config.active_level = 1;
+    onoff_config.gpio_button_config.gpio_num = GPIO_NUM_1;
+    onoff_config.gpio_button_config.active_level = 0;
 
     button_handle_t onoff_handle = iot_button_create(&onoff_config);
 
@@ -493,8 +497,8 @@ esp_err_t app_driver_init()
     memset(&start_config, 0, sizeof(button_config_t));
 
     start_config.type = BUTTON_TYPE_GPIO;
-    start_config.gpio_button_config.gpio_num = GPIO_NUM_1;
-    start_config.gpio_button_config.active_level = 1;
+    start_config.gpio_button_config.gpio_num = GPIO_NUM_2;
+    start_config.gpio_button_config.active_level = 0;
 
     button_handle_t start_handle = iot_button_create(&start_config);
 
@@ -504,7 +508,7 @@ esp_err_t app_driver_init()
     memset(&rotary_config, 0, sizeof(button_config_t));
 
     rotary_config.type = BUTTON_TYPE_GPIO;
-    rotary_config.gpio_button_config.gpio_num = GPIO_NUM_2;
+    rotary_config.gpio_button_config.gpio_num = GPIO_NUM_5;
     rotary_config.gpio_button_config.active_level = 0;
 
     button_handle_t rotary_handle = iot_button_create(&rotary_config);

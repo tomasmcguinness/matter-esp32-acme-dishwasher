@@ -369,6 +369,10 @@ void DishwasherManager::UpdateDishwasherDisplay()
 
         mode_text = mode_buffer;
     }
+    else 
+    {
+        mode_text = "ERR: NO DELEGATE";
+    }
 
     char status_buffer[64];
     char *status_formatted_buffer = NULL;
@@ -503,7 +507,7 @@ void DishwasherManager::UpdateMode(uint8_t mode)
 
 static void UpdateDishwasherCurrentModeWorkHandler(intptr_t context)
 {
-    ESP_LOGI(TAG, "UpdateOperationalStatePhaseWorkHandler()");
+    ESP_LOGI(TAG, "UpdateDishwasherCurrentModeWorkHandler()");
     uint8_t mode = (uint8_t)context;
     DishwasherMode::GetInstance()->UpdateCurrentMode(mode);
     DishwasherMgr().UpdateDishwasherDisplay();
@@ -657,8 +661,12 @@ void DishwasherManager::SetForecast()
 {
     ESP_LOGI(TAG, "DishwasherManager::SetForecast()");
 
+    // Use the ScheduleWork method.
+    //
     chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateForecastWorkHandler, mMode);
 
+    // Another approach is locking the stack manually.
+    //
     // chip::DeviceLayer::PlatformMgr().LockChipStack();
     // device_energy_management_delegate.SetForecast(DataModel::MakeNullable(sForecastStruct));
     // chip::DeviceLayer::PlatformMgr().UnlockChipStack();

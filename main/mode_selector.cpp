@@ -3,8 +3,8 @@
 #include <esp_log.h>
 #include <string.h>
 
-#include <driver/pulse_cnt.h>
 #include <driver/gpio.h>
+#include "iot_button.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -12,117 +12,47 @@
 
 #include "dishwasher_manager.h"
 
-#define EXAMPLE_PCNT_HIGH_LIMIT 100
-#define EXAMPLE_PCNT_LOW_LIMIT -100
-
 static const char *TAG = "mode_selector";
-
-static pcnt_unit_handle_t pcnt_unit = NULL;
-static QueueHandle_t gpio_pulse_evt_queue = NULL;
-
-static int current_pulse_count = 0;
-static int pulse_count = 0;
-static int event_count = 0;
 
 ModeSelector ModeSelector::sModeSelector;
 
-#define EXAMPLE_PCNT_HIGH_LIMIT 100
-#define EXAMPLE_PCNT_LOW_LIMIT -100
-
-static void pulse_counter_monitor_task(void *arg)
+static void up_button_single_click_cb(void *args, void *user_data)
 {
-    while (1)
-    {
-        // ESP_LOGI(TAG, "Waiting for event on pulse_evt_queue");
+    ESP_LOGI(TAG, "Up Clicked");
+    DishwasherMgr().SelectNextMode();
+}
 
-        if (xQueueReceive(gpio_pulse_evt_queue, &event_count, pdMS_TO_TICKS(500)))
-        {
-            ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
-        }
-        else
-        {
-            ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
-            // ESP_LOGI(TAG, "Current pulse count: %d", pulse_count);
-
-            if (pulse_count != current_pulse_count)
-            {
-                int pulse_difference = pulse_count - current_pulse_count;
-
-                current_pulse_count = pulse_count;
-
-                // ESP_LOGI(TAG, "Pulse Difference: %d", pulse_difference);
-
-                if (pulse_difference < 0)
-                {
-                    DishwasherMgr().SelectNext();//.SelectNextMode();
-                }
-                else
-                {
-                    DishwasherMgr().SelectPrevious();//.SelectPreviousMode();
-                }
-            }
-        }
-    }
+static void down_button_single_click_cb(void *args, void *user_data)
+{
+    ESP_LOGI(TAG, "Down Clicked");
+    DishwasherMgr().SelectPreviousMode();
 }
 
 esp_err_t ModeSelector::Init()
 {
-    ESP_LOGI(TAG, "install pcnt unit");
+    ESP_LOGI(TAG, "ModelSelector::Init()");
 
-    pcnt_unit_config_t unit_config = {
-        .low_limit = EXAMPLE_PCNT_LOW_LIMIT,
-        .high_limit = EXAMPLE_PCNT_HIGH_LIMIT,
-        .intr_priority = 1};
+    button_config_t onoff_config;
+    memset(&onoff_config, 0, sizeof(button_config_t));
 
-    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
+    onoff_config.type = BUTTON_TYPE_GPIO;
+    onoff_config.gpio_button_config.gpio_num = GPIO_NUM_6;
+    onoff_config.gpio_button_config.active_level = 0;
 
-    ESP_LOGI(TAG, "set glitch filter");
-    pcnt_glitch_filter_config_t filter_config = {
-        .max_glitch_ns = 1000,
-    };
-    ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
+    button_handle_t onoff_handle = iot_button_create(&onoff_config);
 
-    ESP_LOGI(TAG, "install pcnt channels");
-    pcnt_chan_config_t chan_a_config = {
-        .edge_gpio_num = GPIO_NUM_18,
-        .level_gpio_num = GPIO_NUM_20,
-    };
-    pcnt_channel_handle_t pcnt_chan_a = NULL;
-    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
-    pcnt_chan_config_t chan_b_config = {
-        .edge_gpio_num = GPIO_NUM_20,
-        .level_gpio_num = GPIO_NUM_18,
-    };
-    pcnt_channel_handle_t pcnt_chan_b = NULL;
-    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
+    ESP_ERROR_CHECK(iot_button_register_cb(onoff_handle, BUTTON_SINGLE_CLICK, up_button_single_click_cb, NULL));
 
-    ESP_LOGI(TAG, "set edge and level actions for pcnt channels");
-    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
-    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_a, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
-    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
-    ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
+    button_config_t start_config;
+    memset(&start_config, 0, sizeof(button_config_t));
 
-    ESP_LOGI(TAG, "add watch points and register callbacks");
-    int watch_points[] = {EXAMPLE_PCNT_LOW_LIMIT, -50, 0, 50, EXAMPLE_PCNT_HIGH_LIMIT};
-    for (size_t i = 0; i < sizeof(watch_points) / sizeof(watch_points[0]); i++)
-    {
-        ESP_ERROR_CHECK(pcnt_unit_add_watch_point(pcnt_unit, watch_points[i]));
-    }
-    pcnt_event_callbacks_t cbs = {
-        .on_reach = NULL,
-    };
+    start_config.type = BUTTON_TYPE_GPIO;
+    start_config.gpio_button_config.gpio_num = GPIO_NUM_4;
+    start_config.gpio_button_config.active_level = 0;
 
-    gpio_pulse_evt_queue = xQueueCreate(10, sizeof(int));
-    ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, gpio_pulse_evt_queue));
+    button_handle_t start_handle = iot_button_create(&start_config);
 
-    ESP_LOGI(TAG, "enable pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-    ESP_LOGI(TAG, "clear pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-    ESP_LOGI(TAG, "start pcnt unit");
-    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
-
-    xTaskCreate(pulse_counter_monitor_task, "mode_selector_task", 2048, NULL, tskIDLE_PRIORITY, NULL);
+    ESP_ERROR_CHECK(iot_button_register_cb(start_handle, BUTTON_SINGLE_CLICK, down_button_single_click_cb, NULL));
 
     ESP_LOGI(TAG, "mode_selector initialised");
 

@@ -1,4 +1,4 @@
 dependencies:
-  lvgl/lvgl: "8.3.0"
-  espressif/esp_lvgl_port: "^1"
-  espressif/button: "3.5.0"
+  espressif/button: 3.5.0
+  espressif/esp_lvgl_port: ^2.7.0
+  lvgl/lvgl: ^9.3

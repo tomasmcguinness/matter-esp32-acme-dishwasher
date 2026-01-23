@@ -34,6 +34,7 @@ private:
 
     lv_obj_t *mStatusLabel;
     lv_obj_t *mStateLabel;
+    lv_obj_t *mSelectedProgramLabel;
     lv_obj_t *mModeLabel;
     lv_obj_t *mResetMessageLabel;
     lv_obj_t *mYesButtonLabel;

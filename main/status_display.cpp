@@ -10,6 +10,8 @@
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lvgl_port.h"
 
+#include "esp_lcd_panel_ssd1681.h"
+
 #include "lvgl.h"
 
 #include "dishwasher_manager.h"
@@ -17,20 +19,23 @@
 static const char *TAG = "status_display";
 
 #define I2C_BUS_PORT 0
-
-// TODO Move to configuration
-//
-#define EXAMPLE_LCD_PIXEL_CLOCK_HZ (400 * 1000)
-#define EXAMPLE_PIN_NUM_SDA 22
-#define EXAMPLE_PIN_NUM_SCL 23
-#define EXAMPLE_PIN_NUM_RST 16
-#define EXAMPLE_I2C_HW_ADDR 0x3C
+#define LCD_HOST SPI2_HOST
 
 #define EXAMPLE_LCD_CMD_BITS 8
 #define EXAMPLE_LCD_PARAM_BITS 8
 
-#define EXAMPLE_LCD_H_RES 128
-#define EXAMPLE_LCD_V_RES 64
+#define LCD_H_RES 400
+#define LCD_V_RES 300
+
+#define PIN_NUM_MOSI 11
+#define PIN_NUM_MISO 13
+#define PIN_NUM_SCLK 12
+#define PIN_NUM_CS 10
+#define PIN_NUM_DC 46
+#define PIN_NUM_RST 47
+#define PIN_NUM_BUSY 48
+#define PIN_NUM_INDICATOR_LED 41
+#define PIN_NUM_LCD_POWER 7
 
 StatusDisplay StatusDisplay::sStatusDisplay;
 
@@ -38,105 +43,153 @@ esp_err_t StatusDisplay::Init()
 {
     ESP_LOGI(TAG, "StatusDisplay::Init()");
 
-    ESP_LOGI(TAG, "Initialize I2C bus");
-    i2c_master_bus_handle_t i2c_bus = NULL;
-    i2c_master_bus_config_t bus_config = {
-        .i2c_port = I2C_BUS_PORT,
-        .sda_io_num = (gpio_num_t)EXAMPLE_PIN_NUM_SDA,
-        .scl_io_num = (gpio_num_t)EXAMPLE_PIN_NUM_SCL,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .flags = {
-            .enable_internal_pullup = true,
-        }};
-    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &i2c_bus));
+    ESP_LOGI(TAG, "Initialize SPI bus");
+
+    spi_bus_config_t buscfg = {
+        .mosi_io_num = PIN_NUM_MOSI,
+        .miso_io_num = PIN_NUM_MISO,
+        .sclk_io_num = PIN_NUM_SCLK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = SOC_SPI_MAXIMUM_BUFFER_SIZE,
+    };
+
+    ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     ESP_LOGI(TAG, "Install panel IO");
     esp_lcd_panel_io_handle_t io_handle = NULL;
-    esp_lcd_panel_io_i2c_config_t io_config = {
-        .dev_addr = EXAMPLE_I2C_HW_ADDR,
-        .control_phase_bytes = 1,
-        .dc_bit_offset = 6,                     // According to SSD1306 datasheet
-        .lcd_cmd_bits = EXAMPLE_LCD_CMD_BITS,   // According to SSD1306 datasheet
-        .lcd_param_bits = EXAMPLE_LCD_CMD_BITS, // According to SSD1306 datasheet
-        .scl_speed_hz = EXAMPLE_LCD_PIXEL_CLOCK_HZ,
-    };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2c_bus, &io_config, &io_handle));
 
-    ESP_LOGI(TAG, "Install SSD1306 panel driver");
+    esp_lcd_panel_io_spi_config_t io_config = {
+        .cs_gpio_num = PIN_NUM_CS,
+        .dc_gpio_num = PIN_NUM_DC,
+        .spi_mode = 0,
+        .pclk_hz = 20 * 1000 * 1000,
+        .trans_queue_depth = 7,
+        .on_color_trans_done = NULL,
+        .lcd_cmd_bits = EXAMPLE_LCD_CMD_BITS,
+        .lcd_param_bits = EXAMPLE_LCD_PARAM_BITS,
+    };
+
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &io_handle));
+
+    ESP_LOGI(TAG, "Install SSD1683 panel driver");
+    esp_lcd_ssd1681_config_t epaper_ssd1681_config = {
+        .busy_gpio_num = PIN_NUM_BUSY,
+        .non_copy_mode = false,
+    };
     esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = EXAMPLE_PIN_NUM_RST,
-        .bits_per_pixel = 1,
-    };
+        .reset_gpio_num = PIN_NUM_RST,
+        .flags = {
+            .reset_active_high = true,
+        },
+        .vendor_config = &epaper_ssd1681_config};
+    gpio_install_isr_service(0);
+    ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1681(io_handle, &panel_config, &mPanelHandle));
 
-    esp_lcd_panel_ssd1306_config_t ssd1306_config = {
-        .height = EXAMPLE_LCD_V_RES,
-    };
-    panel_config.vendor_config = &ssd1306_config;
-    ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1306(io_handle, &panel_config, &mPanelHandle));
+    gpio_config_t io_conf = {};
+    io_conf.pin_bit_mask = ((1ULL << PIN_NUM_INDICATOR_LED) | (1ULL << PIN_NUM_LCD_POWER));
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&io_conf);
 
+    gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, true);
+    ESP_LOGI(TAG, "Applied power to LED");
+
+    gpio_set_level((gpio_num_t)PIN_NUM_LCD_POWER, true);
+    ESP_LOGI(TAG, "Applied power to display");
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    ESP_LOGI(TAG, "Performing reset...");
     ESP_ERROR_CHECK(esp_lcd_panel_reset(mPanelHandle));
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    ESP_LOGI(TAG, "Performing init...");
     ESP_ERROR_CHECK(esp_lcd_panel_init(mPanelHandle));
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    // --- Turn on display
+    // ESP_LOGI(TAG, "Turning e-Paper display on...");
+    // ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(mPanelHandle, true));
+    // vTaskDelay(100 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "Initialize LVGL");
     const lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
     lvgl_port_init(&lvgl_cfg);
 
-    ESP_LOGI(TAG, "LVGL1");
+    ESP_LOGI(TAG, "LVGL");
 
     const lvgl_port_display_cfg_t disp_cfg = {
         .io_handle = io_handle,
         .panel_handle = mPanelHandle,
-        .buffer_size = EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES,
+        .buffer_size = LCD_H_RES * LCD_V_RES,
         .double_buffer = true,
-        .hres = EXAMPLE_LCD_H_RES,
-        .vres = EXAMPLE_LCD_V_RES,
-        .monochrome = true,
+        .trans_size = 1024,
+        .hres = LCD_H_RES,
+        .vres = LCD_V_RES,
+        .monochrome = false,
         .rotation = {
             .swap_xy = false,
             .mirror_x = false,
             .mirror_y = false,
-        }};
+        },
+        .color_format = LV_COLOR_FORMAT_I1,
+        .flags = {.buff_dma = false, .buff_spiram = true, .full_refresh = true}};
 
     mDisplayHandle = lvgl_port_add_disp(&disp_cfg);
 
-    lv_disp_set_rotation(mDisplayHandle, LV_DISP_ROT_180);
-
-    ESP_LOGI(TAG, "LVGL2");
-
     lv_obj_t *scr = lv_scr_act();
 
-    mModeLabel = lv_label_create(scr);
-    lv_label_set_text(mModeLabel, "Eco 50°"); // TODO Get this default from the DishwasherManager
-    lv_obj_set_width(mModeLabel, mDisplayHandle->driver->hor_res);
-    lv_obj_align(mModeLabel, LV_ALIGN_LEFT_MID, 0, 0);
+    LV_FONT_DECLARE(lv_font_montserrat_48);
+
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
+
+    static lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_text_font(&style, &lv_font_montserrat_48);
 
     mStateLabel = lv_label_create(scr);
 
     lv_label_set_text(mStateLabel, "STOPPED"); // TODO Get this default from the DishwasherManager
-    lv_obj_set_width(mStateLabel, mDisplayHandle->driver->hor_res);
-    lv_obj_align(mStateLabel, LV_ALIGN_TOP_MID, 0, 0);
-    lv_obj_set_style_bg_color(mStateLabel, lv_color_hex(0x000000), LV_PART_MAIN);
+    lv_obj_set_width(mStateLabel, 400);
+    lv_obj_align(mStateLabel, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_set_style_bg_color(mStateLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(mStateLabel, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_text_color(mStateLabel, lv_color_hex(0xffffff), LV_PART_MAIN);
+    lv_obj_set_style_text_color(mStateLabel, lv_color_hex(0x000000), LV_PART_MAIN);
+    lv_obj_add_style(mStateLabel, &style, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(mStateLabel, 10, LV_PART_MAIN);
+
+    mSelectedProgramLabel = lv_label_create(scr);
+    lv_label_set_text(mSelectedProgramLabel, "Selected Program");
+    lv_obj_set_width(mSelectedProgramLabel, 400);
+    lv_obj_align(mSelectedProgramLabel, LV_ALIGN_LEFT_MID, 0, -30);
+
+    mModeLabel = lv_label_create(scr);
+    lv_label_set_text(mModeLabel, "Eco 50°"); // TODO Get this default from the DishwasherManager
+    lv_obj_set_width(mModeLabel, 400);
+    lv_obj_align(mModeLabel, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_set_style_text_color(mModeLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_add_style(mModeLabel, &style, LV_PART_MAIN);
 
     mStatusLabel = lv_label_create(scr);
 
     lv_label_set_text(mStatusLabel, "");
-    lv_obj_set_width(mStatusLabel, mDisplayHandle->driver->hor_res);
+    lv_obj_set_width(mStatusLabel, 400);
     lv_obj_align(mStatusLabel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
     mResetMessageLabel = lv_label_create(scr);
 
     lv_label_set_text(mResetMessageLabel, "Reset the device?");
-    lv_obj_set_width(mResetMessageLabel, mDisplayHandle->driver->hor_res);
+    lv_obj_set_width(mResetMessageLabel, 400);
     lv_obj_add_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_align(mResetMessageLabel, LV_ALIGN_TOP_MID, 0, 0);
 
     mYesButtonLabel = lv_label_create(scr);
 
     lv_label_set_text(mYesButtonLabel, "Yes");
-    lv_obj_set_width(mYesButtonLabel, mDisplayHandle->driver->hor_res);
+    lv_obj_set_width(mYesButtonLabel, 400);
     lv_obj_add_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_align(mYesButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_align(mYesButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
@@ -144,7 +197,7 @@ esp_err_t StatusDisplay::Init()
     mNoButtonLabel = lv_label_create(scr);
 
     lv_label_set_text(mNoButtonLabel, "No");
-    lv_obj_set_width(mNoButtonLabel, mDisplayHandle->driver->hor_res);
+    lv_obj_set_width(mNoButtonLabel, 400);
     lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_align(mNoButtonLabel, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_align(mNoButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
@@ -152,7 +205,7 @@ esp_err_t StatusDisplay::Init()
     mStartsInLabel = lv_label_create(scr);
 
     lv_label_set_text(mStartsInLabel, "");
-    lv_obj_set_width(mStartsInLabel, mDisplayHandle->driver->hor_res);
+    lv_obj_set_width(mStartsInLabel, 400);
     lv_obj_add_flag(mStartsInLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_align(mStartsInLabel, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(mStartsInLabel, LV_ALIGN_CENTER, 0, 0);
@@ -160,14 +213,14 @@ esp_err_t StatusDisplay::Init()
     mMenuButtonLabel = lv_label_create(scr);
 
     lv_label_set_text(mMenuButtonLabel, "MENU");
-    lv_obj_set_width(mMenuButtonLabel, mDisplayHandle->driver->hor_res);
+    lv_obj_set_width(mMenuButtonLabel, 400);
     lv_obj_set_style_text_align(mMenuButtonLabel, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(mMenuButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
 
     mMenuHeaderLabel = lv_label_create(scr);
 
     lv_label_set_text(mMenuHeaderLabel, "Energy Mgr");
-    lv_obj_set_width(mMenuHeaderLabel, mDisplayHandle->driver->hor_res);
+    lv_obj_set_width(mMenuHeaderLabel, 400);
     lv_obj_add_flag(mMenuHeaderLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_align(mMenuHeaderLabel, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_align(mMenuHeaderLabel, LV_ALIGN_TOP_LEFT, 0, 0);
@@ -188,6 +241,10 @@ esp_err_t StatusDisplay::Init()
     lv_obj_add_flag(mEnergyManagementOptInLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_align(mEnergyManagementOptInLabel, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_set_style_text_align(mEnergyManagementOptInLabel, LV_TEXT_ALIGN_RIGHT, 0);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 
     ESP_LOGI(TAG, "StatusDisplay::Init() finished");
 
@@ -275,7 +332,7 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
             {
                 lv_label_set_text(mMenuButtonLabel, "CANCEL");
                 lv_obj_clear_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
-    
+
                 lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
@@ -313,6 +370,8 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
             lv_label_set_text(mStatusLabel, status_text);
         }
     }
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
 
 void StatusDisplay::ShowResetOptions()
