@@ -537,6 +537,10 @@ void DishwasherManager::SelectNext()
         ESP_LOGI(TAG, "Opted into energy management: %d", mOptedIntoEnergyManagement);
         UpdateDishwasherDisplay();
     }
+    else
+    {
+        SelectNextMode();
+    }
 }
 
 void DishwasherManager::SelectPrevious()
@@ -566,6 +570,10 @@ void DishwasherManager::SelectPrevious()
 
         ESP_LOGI(TAG, "Opted into energy management: %d", mOptedIntoEnergyManagement);
         UpdateDishwasherDisplay();
+    }
+    else
+    {
+        SelectPreviousMode();
     }
 }
 

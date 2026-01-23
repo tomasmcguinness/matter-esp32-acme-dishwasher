@@ -33,16 +33,16 @@ static void pulse_counter_monitor_task(void *arg)
 {
     while (1)
     {
-        // ESP_LOGI(TAG, "Waiting for event on pulse_evt_queue");
+        //ESP_LOGD(TAG, "Waiting for event on pulse_evt_queue");
 
-        if (xQueueReceive(gpio_pulse_evt_queue, &event_count, pdMS_TO_TICKS(500)))
+        if (xQueueReceive(gpio_pulse_evt_queue, &event_count, pdMS_TO_TICKS(200)))
         {
-            ESP_LOGI(TAG, "Watch point event, count: %d", event_count);
+            //ESP_LOGD(TAG, "Watch point event, count: %d", event_count);
         }
         else
         {
             ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &pulse_count));
-            // ESP_LOGI(TAG, "Current pulse count: %d", pulse_count);
+            //ESP_LOGD(TAG, "Current pulse count: %d", pulse_count);
 
             if (pulse_count != current_pulse_count)
             {
@@ -54,11 +54,11 @@ static void pulse_counter_monitor_task(void *arg)
 
                 if (pulse_difference < 0)
                 {
-                    DishwasherMgr().SelectNext();//.SelectNextMode();
+                    DishwasherMgr().SelectNext();
                 }
                 else
                 {
-                    DishwasherMgr().SelectPrevious();//.SelectPreviousMode();
+                    DishwasherMgr().SelectPrevious();
                 }
             }
         }
