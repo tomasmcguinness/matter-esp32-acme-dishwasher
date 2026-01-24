@@ -94,11 +94,25 @@ esp_err_t epaper_panel_register_event_callbacks(esp_lcd_panel_t *panel, epaper_p
 
 static esp_err_t panel_epaper_wait_busy(esp_lcd_panel_t *panel)
 {
+    ESP_LOGI(TAG, "Waiting until display is no longer busy");
+
+    int wait_count = 0;
+
     epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
     while (gpio_get_level(epaper_panel->busy_gpio_num))
     {
         vTaskDelay(pdMS_TO_TICKS(10));
+        wait_count++;
+
+        if (wait_count >= 20)
+        {
+            ESP_LOGI(TAG, "Can't wait any longer!");
+            return ESP_OK;
+        }
     }
+
+    ESP_LOGI(TAG, "Display is no longer busy!");
+
     return ESP_OK;
 }
 
@@ -120,9 +134,11 @@ esp_err_t epaper_panel_refresh_screen(esp_lcd_panel_t *panel)
 
     ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(epaper_panel->io, SSD1681_CMD_SET_DISP_UPDATE_CTRL, (uint8_t[]){0xC7}, 1), TAG, "SSD1681_CMD_SET_DISP_UPDATE_CTRL err");
 
-    gpio_intr_enable(epaper_panel->busy_gpio_num);
+    // gpio_intr_enable(epaper_panel->busy_gpio_num);
 
     ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(epaper_panel->io, SSD1681_CMD_ACTIVE_DISP_UPDATE_SEQ, NULL, 0), TAG, "SSD1681_CMD_ACTIVE_DISP_UPDATE_SEQ err");
+
+    ESP_LOGI(TAG, "epaper_panel_refresh_screen - command sent");
 
     return ESP_OK;
 }
@@ -179,23 +195,30 @@ esp_lcd_new_panel_ssd1681(const esp_lcd_panel_io_handle_t io, const esp_lcd_pane
             .mode = GPIO_MODE_OUTPUT,
             .pin_bit_mask = 1ULL << panel_dev_config->reset_gpio_num,
         };
-        ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "configure GPIO for RST line err");
+        ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "Configure GPIO for RST line err");
     }
     // init BUSY GPIO
     if (epaper_panel->busy_gpio_num >= 0)
     {
+        // gpio_config_t io_conf = {
+        //     .mode = GPIO_MODE_INPUT,
+        //     .pull_down_en = 0x01,
+        //     .pin_bit_mask = 1ULL << epaper_panel->busy_gpio_num,
+        // };
+        // io_conf.intr_type = GPIO_INTR_NEGEDGE;
+        // ESP_LOGI(TAG, "Add handler for GPIO %d", epaper_panel->busy_gpio_num);
+        // ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "configure GPIO for BUSY line err");
+        // ESP_GOTO_ON_ERROR(gpio_isr_handler_add(epaper_panel->busy_gpio_num, epaper_driver_gpio_isr_handler, epaper_panel), err, TAG, "configure GPIO for BUSY line err");
+
+        // // Enable GPIO intr only before refreshing, to avoid other commands caused intr trigger
+        // gpio_intr_disable(epaper_panel->busy_gpio_num);
+
         gpio_config_t io_conf = {
             .mode = GPIO_MODE_INPUT,
             .pull_down_en = 0x01,
             .pin_bit_mask = 1ULL << epaper_panel->busy_gpio_num,
         };
-        io_conf.intr_type = GPIO_INTR_NEGEDGE;
-        ESP_LOGI(TAG, "Add handler for GPIO %d", epaper_panel->busy_gpio_num);
-        ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "configure GPIO for BUSY line err");
-        ESP_GOTO_ON_ERROR(gpio_isr_handler_add(epaper_panel->busy_gpio_num, epaper_driver_gpio_isr_handler, epaper_panel), err, TAG, "configure GPIO for BUSY line err");
-
-        // Enable GPIO intr only before refreshing, to avoid other commands caused intr trigger
-        gpio_intr_disable(epaper_panel->busy_gpio_num);
+        ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "Configure GPIO for BUSY line err");
     }
     ESP_LOGD(TAG, "new epaper panel @%p", epaper_panel);
     return ret;
@@ -298,11 +321,14 @@ static esp_err_t epaper_panel_draw_bitmap(esp_lcd_panel_t *panel, int x_start, i
     ESP_LOGI(TAG, "epaper_panel_draw_bitmap: %d,%d %d,%d", x_start, y_start, x_end, y_end);
 
     epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
-    if (gpio_get_level(epaper_panel->busy_gpio_num))
-    {
-        ESP_LOGI(TAG, "Panel is busy. Cannot refresh");
-        return ESP_ERR_NOT_FINISHED;
-    }
+   
+    panel_epaper_wait_busy(panel);
+   
+    // if (gpio_get_level(epaper_panel->busy_gpio_num))
+    // {
+    //     ESP_LOGI(TAG, "Panel is busy. Cannot refresh");
+    //     return ESP_ERR_NOT_FINISHED;
+    // }
 
     // --- Calculate coordinates & sizes
     int len_x = abs(x_start - x_end);
@@ -314,6 +340,8 @@ static esp_err_t epaper_panel_draw_bitmap(esp_lcd_panel_t *panel, int x_start, i
     process_bitmap(panel, len_x, len_y, buffer_size, color_data);
 
     ESP_RETURN_ON_ERROR(panel_epaper_set_vram(epaper_panel->io, (uint8_t *)(epaper_panel->_framebuffer), NULL, (len_x * len_y / 8)), TAG, "panel_epaper_set_vram error");
+
+    panel_epaper_wait_busy(panel);
 
     return ESP_OK;
 }

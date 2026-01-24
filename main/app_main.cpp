@@ -16,9 +16,13 @@
 #include <common_macros.h>
 #include <app_priv.h>
 
+#include <app/server/OnboardingCodesUtil.h>
+#include <setup_payload/QRCodeSetupPayloadGenerator.h>
+
 #include <app-common/zap-generated/ids/Attributes.h> // For Attribute IDs
 
 #include "dishwasher_manager.h"
+#include "status_display.h"
 
 #include "esp_netif_sntp.h"
 
@@ -47,7 +51,7 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
     case chip::DeviceLayer::DeviceEventType::kInterfaceIpAddressChanged:
         ESP_LOGI(TAG, "Interface IP Address Changed");
         ESP_LOGI(TAG, "Synchronizing time with SNTP server");
-       break;
+        break;
 
     case chip::DeviceLayer::DeviceEventType::kCommissioningComplete:
         ESP_LOGI(TAG, "Commissioning complete");
@@ -66,8 +70,26 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
         break;
 
     case chip::DeviceLayer::DeviceEventType::kCommissioningWindowOpened:
+    {
         ESP_LOGI(TAG, "Commissioning window opened");
-        // chip::RendezvousInformationFlag(chip::RendezvousInformationFlag::kBLE);
+
+        chip::RendezvousInformationFlags rendezvoudFlags = chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE);
+
+        chip::PayloadContents payload;
+        GetPayloadContents(payload, rendezvoudFlags);
+
+        char payloadBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+        chip::MutableCharSpan qrCode(payloadBuffer);
+
+        if (GetQRCode(qrCode, payload) == CHIP_NO_ERROR)
+        {
+            //StatusDisplayMgr().ShowCommissioningCode(qrCode);
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Failed to generate the commissioning QR code");
+        }
+    }
         break;
 
     case chip::DeviceLayer::DeviceEventType::kCommissioningWindowClosed:
@@ -106,11 +128,13 @@ static esp_err_t app_attribute_update_cb(callback_type_t type, uint16_t endpoint
     {
         if (endpoint_id == 0x01)
         {
+            // This must be the dead front, OnOff Cluster.
+            //
             if (cluster_id == OnOff::Id)
             {
                 if (attribute_id == OnOff::Attributes::OnOff::Id)
                 {
-                    ESP_LOGI(TAG, "OnOff attribute updated to: %s!", val->val.b ? "on" : "off");
+                    ESP_LOGI(TAG, "DeadFront OnOff attribute updated to: %s!", val->val.b ? "on" : "off");
 
                     if (val->val.b)
                     {
@@ -128,7 +152,7 @@ static esp_err_t app_attribute_update_cb(callback_type_t type, uint16_t endpoint
     return ESP_OK;
 }
 
-static void esp_sntp_time_cb(struct timeval *tv) 
+static void esp_sntp_time_cb(struct timeval *tv)
 {
     ESP_LOGI(TAG, "TIME SET!");
 }
@@ -174,8 +198,8 @@ extern "C" void app_main()
 
     // Setting the delegate this way doesn't work.
     //
-    //dish_washer_mode_config.delegate = &dish_washer_mode_delegate;
-    dish_washer_mode_config.current_mode = DishwasherMode::ModeNormal; 
+    // dish_washer_mode_config.delegate = &dish_washer_mode_delegate;
+    dish_washer_mode_config.current_mode = DishwasherMode::ModeNormal;
 
     esp_matter::cluster_t *dish_washer_mode_cluster = esp_matter::cluster::dish_washer_mode::create(endpoint, &dish_washer_mode_config, CLUSTER_FLAG_SERVER);
     ABORT_APP_ON_FAILURE(dish_washer_mode_cluster != nullptr, ESP_LOGE(TAG, "Failed to create dishwashermode cluster"));
@@ -199,7 +223,7 @@ extern "C" void app_main()
      * Add DeviceEnergyManagement
      */
     esp_matter::endpoint::device_energy_management::config_t device_energy_management_config;
-    //device_energy_management_config.device_energy_management.feature_flags = esp_matter::cluster::device_energy_management::feature::power_forecast_reporting::get_id() | esp_matter::cluster::device_energy_management::feature::start_time_adjustment::get_id();
+    // device_energy_management_config.device_energy_management.feature_flags = esp_matter::cluster::device_energy_management::feature::power_forecast_reporting::get_id() | esp_matter::cluster::device_energy_management::feature::start_time_adjustment::get_id();
     device_energy_management_config.device_energy_management.delegate = &device_energy_management_delegate;
 
     endpoint_t *device_energy_management_endpoint = esp_matter::endpoint::device_energy_management::create(node, &device_energy_management_config, ENDPOINT_FLAG_NONE, NULL);
@@ -207,6 +231,9 @@ extern "C" void app_main()
 
     device_energy_manager_endpoint_id = endpoint::get_id(device_energy_management_endpoint);
     ESP_LOGI(TAG, "Device Energy Manager created with endpoint_id %d", device_energy_manager_endpoint_id);
+
+    err = StatusDisplayMgr().Init();
+    ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "StatusDisplay::Init() failed, err:%d", err));
 
     err = DishwasherMgr().Init();
     ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "DishwasherMgr::Init() failed, err:%d", err));

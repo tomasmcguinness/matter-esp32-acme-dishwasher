@@ -6,7 +6,7 @@ if(NOT DEFINED ENV{ESP_MATTER_PATH})
     message(FATAL_ERROR "Please set ESP_MATTER_PATH to the path of esp-matter repo")
 endif(NOT DEFINED ENV{ESP_MATTER_PATH})
 
-set(PROJECT_VER "v1.0")
+set(PROJECT_VER "v0.1")
 set(PROJECT_VER_NUMBER 1)
 
 set(ESP_MATTER_PATH $ENV{ESP_MATTER_PATH})
@@ -28,7 +28,7 @@ set(EXTRA_COMPONENT_DIRS
     "${ESP_MATTER_PATH}/components"
     ${extra_components_dirs_append})
 
-project(tiny_dishwasher)
+project(acme_dishwasher)
 if(CONFIG_IDF_TARGET_ESP32C2)
     include(relinker)
 endif()

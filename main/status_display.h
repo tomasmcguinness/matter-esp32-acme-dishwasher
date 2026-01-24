@@ -5,7 +5,11 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_vendor.h"
 
+#include <esp_matter.h>
+
 #include <inttypes.h>
+
+#include "qrcode.h"
 
 enum State {
   STOPPED,
@@ -16,6 +20,11 @@ enum State {
 class StatusDisplay
 {
 public:
+    StatusDisplay() 
+    {
+        ESP_LOGI("StatusDisplay", "StatusDisplay::StatusDisplay()");
+    }
+
     esp_err_t Init();
 
     void TurnOn();
@@ -26,9 +35,15 @@ public:
     void ShowResetOptions();
     void HideResetOptions();
 
+    void PrintQRCode(esp_qrcode_handle_t qrcode);
+    void ShowCommissioningCode(chip::MutableCharSpan qrCode);
+
 private:
     friend StatusDisplay & StatusDisplayMgr(void);
     static StatusDisplay sStatusDisplay;
+
+    bool mScreenOn = false;
+
     lv_disp_t *mDisplayHandle;
     esp_lcd_panel_handle_t mPanelHandle;
 
@@ -44,6 +59,7 @@ private:
     lv_obj_t *mMenuHeaderLabel;
     lv_obj_t *mEnergyManagementOptOutLabel;
     lv_obj_t *mEnergyManagementOptInLabel;
+   
 };
 
 inline StatusDisplay & StatusDisplayMgr(void)

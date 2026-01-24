@@ -32,7 +32,6 @@ static void ProgramTick(void *arg)
 esp_err_t DishwasherManager::Init()
 {
     ESP_LOGI(TAG, "Initializing DishwasherManager");
-    StatusDisplayMgr().Init();
     ModeSelectorMgr().Init();
 
     xTaskCreate(ProgramTick, "ProgramTick", 4096, NULL, tskIDLE_PRIORITY, NULL);

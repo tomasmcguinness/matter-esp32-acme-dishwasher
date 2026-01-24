@@ -14,8 +14,6 @@
 
 #include "lvgl.h"
 
-#include "dishwasher_manager.h"
-
 static const char *TAG = "status_display";
 
 #define I2C_BUS_PORT 0
@@ -39,16 +37,14 @@ static const char *TAG = "status_display";
 
 StatusDisplay StatusDisplay::sStatusDisplay;
 
-static SemaphoreHandle_t panel_refreshing_sem = NULL;
-
 IRAM_ATTR bool epaper_flush_ready_callback(const esp_lcd_panel_handle_t handle, const void *edata, void *user_data)
 {
-    //lv_display_t *disp_driver = (lv_display_t *) user_data;
-    //lv_disp_flush_ready(disp_driver);
-    // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    // xSemaphoreGiveFromISR(panel_refreshing_sem, &xHigherPriorityTaskWoken);
-    // if (xHigherPriorityTaskWoken == pdTRUE) {
-         return true;
+    // lv_display_t *disp_driver = (lv_display_t *) user_data;
+    // lv_disp_flush_ready(disp_driver);
+    //  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    //  xSemaphoreGiveFromISR(panel_refreshing_sem, &xHigherPriorityTaskWoken);
+    //  if (xHigherPriorityTaskWoken == pdTRUE) {
+    return true;
     // }
     // return false;
 }
@@ -97,7 +93,7 @@ esp_err_t StatusDisplay::Init()
             .reset_active_high = true,
         },
         .vendor_config = &epaper_ssd1681_config};
-    gpio_install_isr_service(0);
+    //gpio_install_isr_service(0);
     ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1681(io_handle, &panel_config, &mPanelHandle));
 
     gpio_config_t io_conf = {};
@@ -105,9 +101,6 @@ esp_err_t StatusDisplay::Init()
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&io_conf);
-
-    gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, true);
-    ESP_LOGI(TAG, "Applied power to LED");
 
     gpio_set_level((gpio_num_t)PIN_NUM_LCD_POWER, true);
     ESP_LOGI(TAG, "Applied power to display");
@@ -135,7 +128,7 @@ esp_err_t StatusDisplay::Init()
 
     // Stop the LVGL timer, which writes to the buffer and flushes automatically.
     //
-    //lvgl_port_stop();
+    // lvgl_port_stop();
 
     ESP_LOGI(TAG, "Create LVGL Display");
 
@@ -159,8 +152,7 @@ esp_err_t StatusDisplay::Init()
     mDisplayHandle = lvgl_port_add_disp(&disp_cfg);
 
     epaper_panel_callbacks_t cbs = {
-        .on_epaper_refresh_done = epaper_flush_ready_callback
-    };
+        .on_epaper_refresh_done = epaper_flush_ready_callback};
     epaper_panel_register_event_callbacks(mPanelHandle, &cbs, &mDisplayHandle);
 
     ESP_LOGI(TAG, "Create LVGL Screen");
@@ -185,11 +177,17 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_style_text_color(mStateLabel, lv_color_hex(0x000000), LV_PART_MAIN);
     lv_obj_add_style(mStateLabel, &style, LV_PART_MAIN);
     lv_obj_set_style_pad_left(mStateLabel, 10, LV_PART_MAIN);
+    lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     mSelectedProgramLabel = lv_label_create(scr);
     lv_label_set_text(mSelectedProgramLabel, "Selected Program");
     lv_obj_set_width(mSelectedProgramLabel, 400);
     lv_obj_align(mSelectedProgramLabel, LV_ALIGN_LEFT_MID, 0, -30);
+    lv_obj_add_flag(mSelectedProgramLabel, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     mModeLabel = lv_label_create(scr);
     lv_label_set_text(mModeLabel, "Eco 50°"); // TODO Get this default from the DishwasherManager
@@ -197,13 +195,18 @@ esp_err_t StatusDisplay::Init()
     lv_obj_align(mModeLabel, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_set_style_text_color(mModeLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_add_style(mModeLabel, &style, LV_PART_MAIN);
-        lv_obj_set_style_pad_left(mModeLabel, 20, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(mModeLabel, 20, LV_PART_MAIN);
+    lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     mStatusLabel = lv_label_create(scr);
 
     lv_label_set_text(mStatusLabel, "");
     lv_obj_set_width(mStatusLabel, 400);
     lv_obj_align(mStatusLabel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     mResetMessageLabel = lv_label_create(scr);
 
@@ -279,14 +282,32 @@ esp_err_t StatusDisplay::Init()
 
 void StatusDisplay::TurnOn()
 {
-    //ESP_LOGI(TAG, "Turning display on");
-    //esp_lcd_panel_disp_on_off(mPanelHandle, true);
+    ESP_LOGI(TAG, "Turning display on");
+
+    gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, true);
+    ESP_LOGI(TAG, "Applied power to LED");
+
+    lv_obj_clear_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
 
 void StatusDisplay::TurnOff()
 {
-    //ESP_LOGI(TAG, "Turning display off");
-    //esp_lcd_panel_disp_on_off(mPanelHandle, false);
+    ESP_LOGI(TAG, "Turning display off");
+
+    gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, false);
+    ESP_LOGI(TAG, "Removed power to LED");
+
+    lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
 
 void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, int32_t startsIn, const char *state_text, const char *mode_text, const char *status_text)
@@ -428,4 +449,73 @@ void StatusDisplay::HideResetOptions()
     lv_obj_add_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
+}
+
+void StatusDisplay::PrintQRCode(esp_qrcode_handle_t qrcode)
+{
+    ESP_LOGI(TAG, "Displaying the Matter QR code");
+
+    int size = esp_qrcode_get_size(qrcode);
+    ESP_LOGI(TAG, "QR Code Size: %d", size);
+
+    uint8_t my_img_data[size * size];
+
+    uint16_t pixel_size = 10;
+
+    for (uint16_t y = 0; y < size; y++)
+    {
+        for (uint16_t x = 0; x < size; x++)
+        {
+            uint16_t pos_x = x * pixel_size;
+            uint16_t pos_y = y * pixel_size;
+
+            my_img_data[pos_x + pos_y] = esp_qrcode_get_module(qrcode, x, y);
+        }
+    }
+
+    static lv_image_dsc_t my_img_dsc = {
+        .header = {
+            .cf = LV_COLOR_FORMAT_NATIVE,
+            .w = (uint32_t)size,
+            .h = (uint32_t)size,
+        },
+        .data_size = (uint32_t)(size * size * LV_COLOR_DEPTH / 8),
+        .data = my_img_data,
+    };
+
+    lv_obj_t *icon = lv_image_create(lv_screen_active());
+
+    /* From variable */
+    lv_image_set_src(icon, &my_img_dsc);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
+}
+
+StatusDisplay* aPtr = NULL;
+
+// Non-member function.
+// extern "C" is probably needed if the older DLL is expecting
+// an unmangled C function pointer.
+extern "C" void globalPrintQRCode(esp_qrcode_handle_t param)
+{
+   if ( aPtr == NULL )
+   {
+      // Deal with error
+   }
+   else
+   {
+      aPtr->PrintQRCode(param);
+   }
+}
+
+void StatusDisplay::ShowCommissioningCode(chip::MutableCharSpan qrCode)
+{
+    aPtr = this;
+
+    esp_qrcode_config_t cfg = ESP_QRCODE_CONFIG_DEFAULT();
+    cfg.display_func = (void (*)(esp_qrcode_handle_t))globalPrintQRCode;
+
+    esp_qrcode_generate(&cfg, qrCode.data());
 }

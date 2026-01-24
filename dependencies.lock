@@ -190,6 +190,13 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 1.9.1
+  espressif/qrcode:
+    component_hash: 3b493771bc5d6ad30cbf87c25bf784aada8a08c941504355b55d6b75518ed7bc
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.1.0~2
   espressif/rmaker_common:
     component_hash: f8e531264d62cf01ea1bcc80d7436e09e5819132056ca22c3869f5b0e2000c13
     dependencies: []
@@ -219,7 +226,8 @@ direct_dependencies:
 - espressif/json_generator
 - espressif/json_parser
 - espressif/mdns
+- espressif/qrcode
 - lvgl/lvgl
-manifest_hash: 1509c435ec77b069ab7dcb92da7900388515420df2ddb2ad2738cf9c8a10c8d3
+manifest_hash: 30d89c637c3a50a6caa109d274569801181213b3f354a79fa98177fcc975ae36
 target: esp32s3
 version: 2.0.0
