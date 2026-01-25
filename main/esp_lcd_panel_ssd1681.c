@@ -94,26 +94,35 @@ esp_err_t epaper_panel_register_event_callbacks(esp_lcd_panel_t *panel, epaper_p
 
 static esp_err_t panel_epaper_wait_busy(esp_lcd_panel_t *panel)
 {
-    ESP_LOGI(TAG, "Waiting until display is no longer busy");
-
-    int wait_count = 0;
-
     epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
-    while (gpio_get_level(epaper_panel->busy_gpio_num))
+
+    if (!gpio_get_level(epaper_panel->busy_gpio_num))
     {
-        vTaskDelay(pdMS_TO_TICKS(10));
-        wait_count++;
-
-        if (wait_count >= 20)
-        {
-            ESP_LOGI(TAG, "Can't wait any longer!");
-            return ESP_OK;
-        }
+        ESP_LOGI(TAG, "Display is not busy.");
+        return ESP_OK;
     }
+    else
+    {
+        ESP_LOGI(TAG, "Display is busy. Waiting...");
 
-    ESP_LOGI(TAG, "Display is no longer busy!");
+        int wait_count = 0;
 
-    return ESP_OK;
+        while (gpio_get_level(epaper_panel->busy_gpio_num))
+        {
+            vTaskDelay(pdMS_TO_TICKS(15));
+            wait_count++;
+
+            if (wait_count >= 33)
+            {
+                ESP_LOGI(TAG, "Won't wait any longer!");
+                return ESP_OK;
+            }
+        }
+
+        ESP_LOGI(TAG, "Display is no longer busy!");
+
+        return ESP_OK;
+    }
 }
 
 esp_err_t panel_epaper_set_vram(esp_lcd_panel_io_handle_t io, uint8_t *bw_bitmap, uint8_t *red_bitmap, size_t size)
@@ -321,9 +330,9 @@ static esp_err_t epaper_panel_draw_bitmap(esp_lcd_panel_t *panel, int x_start, i
     ESP_LOGI(TAG, "epaper_panel_draw_bitmap: %d,%d %d,%d", x_start, y_start, x_end, y_end);
 
     epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
-   
+
     panel_epaper_wait_busy(panel);
-   
+
     // if (gpio_get_level(epaper_panel->busy_gpio_num))
     // {
     //     ESP_LOGI(TAG, "Panel is busy. Cannot refresh");
@@ -340,8 +349,6 @@ static esp_err_t epaper_panel_draw_bitmap(esp_lcd_panel_t *panel, int x_start, i
     process_bitmap(panel, len_x, len_y, buffer_size, color_data);
 
     ESP_RETURN_ON_ERROR(panel_epaper_set_vram(epaper_panel->io, (uint8_t *)(epaper_panel->_framebuffer), NULL, (len_x * len_y / 8)), TAG, "panel_epaper_set_vram error");
-
-    panel_epaper_wait_busy(panel);
 
     return ESP_OK;
 }

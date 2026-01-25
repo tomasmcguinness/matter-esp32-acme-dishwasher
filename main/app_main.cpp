@@ -83,7 +83,7 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 
         if (GetQRCode(qrCode, payload) == CHIP_NO_ERROR)
         {
-            //StatusDisplayMgr().ShowCommissioningCode(qrCode);
+            StatusDisplayMgr().ShowCommissioningCode(qrCode);
         }
         else
         {

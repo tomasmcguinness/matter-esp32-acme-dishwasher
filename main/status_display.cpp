@@ -93,7 +93,7 @@ esp_err_t StatusDisplay::Init()
             .reset_active_high = true,
         },
         .vendor_config = &epaper_ssd1681_config};
-    //gpio_install_isr_service(0);
+    // gpio_install_isr_service(0);
     ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1681(io_handle, &panel_config, &mPanelHandle));
 
     gpio_config_t io_conf = {};
@@ -179,7 +179,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_style_pad_left(mStateLabel, 10, LV_PART_MAIN);
     lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
     mSelectedProgramLabel = lv_label_create(scr);
     lv_label_set_text(mSelectedProgramLabel, "Selected Program");
@@ -187,7 +187,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_align(mSelectedProgramLabel, LV_ALIGN_LEFT_MID, 0, -30);
     lv_obj_add_flag(mSelectedProgramLabel, LV_OBJ_FLAG_HIDDEN);
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
     mModeLabel = lv_label_create(scr);
     lv_label_set_text(mModeLabel, "Eco 50°"); // TODO Get this default from the DishwasherManager
@@ -198,15 +198,11 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_style_pad_left(mModeLabel, 20, LV_PART_MAIN);
     lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-
     mStatusLabel = lv_label_create(scr);
 
     lv_label_set_text(mStatusLabel, "");
     lv_obj_set_width(mStatusLabel, 400);
     lv_obj_align(mStatusLabel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-
-    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     mResetMessageLabel = lv_label_create(scr);
 
@@ -466,10 +462,18 @@ void StatusDisplay::PrintQRCode(esp_qrcode_handle_t qrcode)
     {
         for (uint16_t x = 0; x < size; x++)
         {
-            uint16_t pos_x = x * pixel_size;
-            uint16_t pos_y = y * pixel_size;
+            bool is_black = esp_qrcode_get_module(qrcode, x, y);
 
-            my_img_data[pos_x + pos_y] = esp_qrcode_get_module(qrcode, x, y);
+            // Draw a block of pixels.
+            //
+            //for (uint16_t x1 = pos_x; x1 < (pos_x + size); x1++)
+            //{
+                //for (uint16_t y1 = pos_y; y1 < (pos_y + size); y1++)
+                //{
+                    uint16_t addr = x / 8 + y * (size / 8);
+                    my_img_data[addr] = is_black;
+                //}
+            //}
         }
     }
 
@@ -490,24 +494,26 @@ void StatusDisplay::PrintQRCode(esp_qrcode_handle_t qrcode)
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
+    ESP_LOGI(TAG, "Putting the QR code on the screen!");
+
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
 
-StatusDisplay* aPtr = NULL;
+StatusDisplay *aPtr = NULL;
 
 // Non-member function.
 // extern "C" is probably needed if the older DLL is expecting
 // an unmangled C function pointer.
 extern "C" void globalPrintQRCode(esp_qrcode_handle_t param)
 {
-   if ( aPtr == NULL )
-   {
-      // Deal with error
-   }
-   else
-   {
-      aPtr->PrintQRCode(param);
-   }
+    if (aPtr == NULL)
+    {
+        // Deal with error
+    }
+    else
+    {
+        aPtr->PrintQRCode(param);
+    }
 }
 
 void StatusDisplay::ShowCommissioningCode(chip::MutableCharSpan qrCode)

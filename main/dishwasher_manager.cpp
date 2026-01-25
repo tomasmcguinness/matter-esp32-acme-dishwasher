@@ -207,7 +207,7 @@ void DishwasherManager::StartProgram()
         sForecastStruct.earliestStartTime.ClearValue();
         sForecastStruct.latestEndTime.ClearValue();
     }
-    
+
     sForecastStruct.isPausable = false;         // We cannot pause any of the slots in this forecast.
     sForecastStruct.activeSlotNumber.SetNull(); // TODO Change this accordingly as the program progresses.
 
@@ -324,20 +324,20 @@ void DishwasherManager::UpdateDishwasherDisplay()
 {
     ESP_LOGI(TAG, "UpdateDishwasherDisplay called!");
 
-    char *state_text = "";
-    char *mode_text = "";
-    char *status_text = "";
+    char state_text[32]{};
+    char mode_text[32]{};
+    char status_text[32]{};
 
     switch (mState)
     {
     case OperationalStateEnum::kRunning:
-        state_text = "RUNNING";
+        strncpy(state_text, "RUNNING", 32);
         break;
     case OperationalStateEnum::kPaused:
-        state_text = "PAUSED";
+        strncpy(state_text, "PAUSED", 32);
         break;
     case OperationalStateEnum::kStopped:
-        state_text = "STOPPED";
+        strncpy(state_text, "STOPPED", 32);
         break;
     case OperationalStateEnum::kError:
         // sDishwasherLED.Blink(100);
@@ -356,29 +356,24 @@ void DishwasherManager::UpdateDishwasherDisplay()
         sprintf(time_buffer, "%lus", mRunningTimeRemaining);
     }
 
-    char mode_buffer[64];
-
     DishwasherModeDelegate *delegate = (DishwasherModeDelegate *)DishwasherMode::GetDelegate();
 
     if (delegate != nullptr)
     {
+        char mode_buffer[32];
         MutableCharSpan label(mode_buffer);
 
         delegate->GetModeLabelByIndex(mMode, label);
 
         ESP_LOGI(TAG, "Mode Size: %u", label.size());
 
-        mode_text = (char *)malloc(label.size());
-        memcpy(mode_text, label.data(), label.size());
+        memcpy(&mode_text, label.data(), label.size());
         mode_text[label.size()] = '\0';
     }
-    else 
+    else
     {
-        mode_text = "ERR: NO DELEGATE";
+        strncpy(mode_text, "ERR: NO DELEGATE", 32);
     }
-
-    char status_buffer[64];
-    char *status_formatted_buffer = NULL;
 
     if (mState == OperationalStateEnum::kRunning || mState == OperationalStateEnum::kPaused)
     {
@@ -386,26 +381,27 @@ void DishwasherManager::UpdateDishwasherDisplay()
 
         if (operational_state_delegate != nullptr)
         {
+            char status_buffer[64];
             MutableCharSpan label(status_buffer);
 
             operational_state_delegate->GetOperationalPhaseAtIndex(mPhase, label);
 
             int length = snprintf((char *)NULL, 0, "%s (%s)", time_buffer, status_buffer) + 1; /* +1 for the null terminator */
-            status_formatted_buffer = (char *)malloc(length);
-            snprintf(status_formatted_buffer, length, "%s (%s)", time_buffer, status_buffer);
-
-            status_text = status_formatted_buffer;
+            snprintf((char *)&status_text, length, "%s (%s)", time_buffer, status_buffer);
         }
     }
 
     StatusDisplayMgr().UpdateDisplay(mIsShowingMenu, mOptedIntoEnergyManagement, mIsProgramSelected, mDelayedStartTimeRemaining, state_text, mode_text, status_text);
 
-    if (status_formatted_buffer != NULL)
-    {
-        free(status_formatted_buffer);
-    }
+    // if (status_formatted_buffer != NULL)
+    // {
+    //     free(status_formatted_buffer);
+    // }
 
-    free(mode_text);
+    // if (mode_text != NULL)
+    // {
+    //     free(mode_text);
+    // }
 }
 
 void DishwasherManager::ProgressProgram()
