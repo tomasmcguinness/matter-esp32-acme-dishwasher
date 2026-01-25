@@ -37,18 +37,6 @@ static const char *TAG = "status_display";
 
 StatusDisplay StatusDisplay::sStatusDisplay;
 
-IRAM_ATTR bool epaper_flush_ready_callback(const esp_lcd_panel_handle_t handle, const void *edata, void *user_data)
-{
-    // lv_display_t *disp_driver = (lv_display_t *) user_data;
-    // lv_disp_flush_ready(disp_driver);
-    //  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    //  xSemaphoreGiveFromISR(panel_refreshing_sem, &xHigherPriorityTaskWoken);
-    //  if (xHigherPriorityTaskWoken == pdTRUE) {
-    return true;
-    // }
-    // return false;
-}
-
 esp_err_t StatusDisplay::Init()
 {
     ESP_LOGI(TAG, "StatusDisplay::Init()");
@@ -126,10 +114,6 @@ esp_err_t StatusDisplay::Init()
     const lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
     lvgl_port_init(&lvgl_cfg);
 
-    // Stop the LVGL timer, which writes to the buffer and flushes automatically.
-    //
-    // lvgl_port_stop();
-
     ESP_LOGI(TAG, "Create LVGL Display");
 
     const lvgl_port_display_cfg_t disp_cfg = {
@@ -150,10 +134,6 @@ esp_err_t StatusDisplay::Init()
         .flags = {.buff_dma = false, .buff_spiram = true, .full_refresh = true}};
 
     mDisplayHandle = lvgl_port_add_disp(&disp_cfg);
-
-    epaper_panel_callbacks_t cbs = {
-        .on_epaper_refresh_done = epaper_flush_ready_callback};
-    epaper_panel_register_event_callbacks(mPanelHandle, &cbs, &mDisplayHandle);
 
     ESP_LOGI(TAG, "Create LVGL Screen");
 
@@ -218,7 +198,8 @@ esp_err_t StatusDisplay::Init()
     lv_obj_add_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_align(mYesButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_align(mYesButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
-
+    lv_obj_add_style(mYesButtonLabel, &style, LV_PART_MAIN);
+    
     mNoButtonLabel = lv_label_create(scr);
 
     lv_label_set_text(mNoButtonLabel, "No");
@@ -226,7 +207,8 @@ esp_err_t StatusDisplay::Init()
     lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_align(mNoButtonLabel, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_align(mNoButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
-
+    lv_obj_add_style(mNoButtonLabel, &style, LV_PART_MAIN);
+    
     mStartsInLabel = lv_label_create(scr);
 
     lv_label_set_text(mStartsInLabel, "");
@@ -447,81 +429,13 @@ void StatusDisplay::HideResetOptions()
     lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
 }
 
-void StatusDisplay::PrintQRCode(esp_qrcode_handle_t qrcode)
-{
-    ESP_LOGI(TAG, "Displaying the Matter QR code");
-
-    int size = esp_qrcode_get_size(qrcode);
-    ESP_LOGI(TAG, "QR Code Size: %d", size);
-
-    uint8_t my_img_data[size * size];
-
-    uint16_t pixel_size = 10;
-
-    for (uint16_t y = 0; y < size; y++)
-    {
-        for (uint16_t x = 0; x < size; x++)
-        {
-            bool is_black = esp_qrcode_get_module(qrcode, x, y);
-
-            // Draw a block of pixels.
-            //
-            //for (uint16_t x1 = pos_x; x1 < (pos_x + size); x1++)
-            //{
-                //for (uint16_t y1 = pos_y; y1 < (pos_y + size); y1++)
-                //{
-                    uint16_t addr = x / 8 + y * (size / 8);
-                    my_img_data[addr] = is_black;
-                //}
-            //}
-        }
-    }
-
-    static lv_image_dsc_t my_img_dsc = {
-        .header = {
-            .cf = LV_COLOR_FORMAT_NATIVE,
-            .w = (uint32_t)size,
-            .h = (uint32_t)size,
-        },
-        .data_size = (uint32_t)(size * size * LV_COLOR_DEPTH / 8),
-        .data = my_img_data,
-    };
-
-    lv_obj_t *icon = lv_image_create(lv_screen_active());
-
-    /* From variable */
-    lv_image_set_src(icon, &my_img_dsc);
-
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-
-    ESP_LOGI(TAG, "Putting the QR code on the screen!");
-
-    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
-}
-
-StatusDisplay *aPtr = NULL;
-
-// Non-member function.
-// extern "C" is probably needed if the older DLL is expecting
-// an unmangled C function pointer.
-extern "C" void globalPrintQRCode(esp_qrcode_handle_t param)
-{
-    if (aPtr == NULL)
-    {
-        // Deal with error
-    }
-    else
-    {
-        aPtr->PrintQRCode(param);
-    }
-}
-
 void StatusDisplay::ShowCommissioningCode(chip::MutableCharSpan qrCode)
 {
-    aPtr = this;
+    lv_obj_t * qr = lv_qrcode_create(lv_screen_active());
+    lv_qrcode_set_size(qr, 200);
+    lv_qrcode_set_dark_color(qr, lv_color_hex3(0xFF));
+    lv_qrcode_set_light_color(qr, lv_color_hex3(0x00));
+    lv_obj_align(qr, LV_ALIGN_CENTER, 0, 0);
 
-    esp_qrcode_config_t cfg = ESP_QRCODE_CONFIG_DEFAULT();
-    cfg.display_func = (void (*)(esp_qrcode_handle_t))globalPrintQRCode;
-
-    esp_qrcode_generate(&cfg, qrCode.data());
+    lv_qrcode_update(qr, qrCode.data(), qrCode.size());
 }

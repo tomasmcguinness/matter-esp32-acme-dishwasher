@@ -2,4 +2,3 @@ dependencies:
   espressif/button: 3.5.0
   espressif/esp_lvgl_port: ^2.7.0
   lvgl/lvgl: ^9.4
-  qrcode: ^0.1.0
