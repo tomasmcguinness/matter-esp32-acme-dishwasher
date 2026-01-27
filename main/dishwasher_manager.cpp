@@ -79,7 +79,7 @@ void DishwasherManager::HandleStartClicked()
 
 uint32_t DishwasherManager::GetTimeRemaining()
 {
-    return mRunningTimeRemaining;
+    return mRunningTimeSecondsRemaining;
 }
 
 void DishwasherManager::TogglePower()
@@ -94,17 +94,19 @@ void DishwasherManager::TogglePower()
     }
 
     // We can update the OnOff attribute directly as its managed by esp-matter.
+    // DEADFRONT behaviour
     //
-    uint16_t endpoint_id = 0x01;
-    uint32_t cluster_id = OnOff::Id;
-    uint32_t attribute_id = OnOff::Attributes::OnOff::Id;
 
-    esp_matter::attribute_t *attribute = esp_matter::attribute::get(endpoint_id, cluster_id, attribute_id);
+    // uint16_t endpoint_id = 0x01;
+    // uint32_t cluster_id = OnOff::Id;
+    // uint32_t attribute_id = OnOff::Attributes::OnOff::Id;
 
-    esp_matter_attr_val_t val = esp_matter_invalid(NULL);
-    esp_matter::attribute::get_val(attribute, &val);
-    val.val.b = mIsPoweredOn;
-    esp_matter::attribute::update(endpoint_id, cluster_id, attribute_id, &val);
+    // esp_matter::attribute_t *attribute = esp_matter::attribute::get(endpoint_id, cluster_id, attribute_id);
+
+    // esp_matter_attr_val_t val = esp_matter_invalid(NULL);
+    // esp_matter::attribute::get_val(attribute, &val);
+    // val.val.b = mIsPoweredOn;
+    // esp_matter::attribute::update(endpoint_id, cluster_id, attribute_id, &val);
 }
 
 void DishwasherManager::TurnOnPower()
@@ -154,7 +156,7 @@ void DishwasherManager::StartProgram()
     // 30 minutes in seconds = 1800
     // 60 minutes in seconds = 3600
     // 90 minutes in seconds = 5400
-    mRunningTimeRemaining = 1800 + (mMode * 1800);
+    mRunningTimeSecondsRemaining = 1800 + (mMode * 1800);
     mPhase = 0;
 
     // UpdateCurrentPhase(mPhase);
@@ -195,7 +197,7 @@ void DishwasherManager::StartProgram()
 
     sForecastStruct.forecastID = 0; // TODO This should change each time the forecast changes.
     sForecastStruct.startTime = unixEpoch + mDelayedStartTimeRemaining;
-    sForecastStruct.endTime = unixEpoch + mDelayedStartTimeRemaining + mRunningTimeRemaining;
+    sForecastStruct.endTime = unixEpoch + mDelayedStartTimeRemaining + mRunningTimeSecondsRemaining;
 
     if (mOptedIntoEnergyManagement)
     {
@@ -296,11 +298,12 @@ void DishwasherManager::StopProgram()
 {
     mIsProgramSelected = false;
     mDelayedStartTimeRemaining = 0;
-    mRunningTimeRemaining = 0;
+    mRunningTimeSecondsRemaining = 0;
+    mRunningTimeMinutesRemaining = 0;
     UpdateCurrentPhase(0);
     UpdateMode(0);
     UpdateOperationState(OperationalStateEnum::kStopped);
-    ClearForecast();
+    //ClearForecast();
 }
 
 void DishwasherManager::EndProgram()
@@ -347,15 +350,6 @@ void DishwasherManager::UpdateDishwasherDisplay()
         break;
     }
 
-    ESP_LOGI(TAG, "Time Remaining: %lu", mRunningTimeRemaining);
-
-    char time_buffer[30] = "";
-
-    if (mRunningTimeRemaining > 0)
-    {
-        sprintf(time_buffer, "%lus", mRunningTimeRemaining);
-    }
-
     DishwasherModeDelegate *delegate = (DishwasherModeDelegate *)DishwasherMode::GetDelegate();
 
     if (delegate != nullptr)
@@ -385,15 +379,15 @@ void DishwasherManager::UpdateDishwasherDisplay()
             MutableCharSpan label(status_buffer);
 
             operational_state_delegate->GetOperationalPhaseAtIndex(mPhase, label);
-
-            int length = snprintf((char *)NULL, 0, "%s (%s)", time_buffer, status_buffer) + 1; /* +1 for the null terminator */
-            snprintf((char *)&status_text, length, "%s (%s)", time_buffer, status_buffer);
         }
     }
 
-    StatusDisplayMgr().UpdateDisplay(mIsShowingMenu, mOptedIntoEnergyManagement, mIsProgramSelected, mDelayedStartTimeRemaining, state_text, mode_text, status_text);
+    StatusDisplayMgr().UpdateDisplay(mIsShowingMenu, mOptedIntoEnergyManagement, mIsProgramSelected, mDelayedStartTimeRemaining, mRunningTimeMinutesRemaining, state_text, mode_text);
+    //StatusDisplayMgr().UpdateDisplay(mIsShowingMenu, mOptedIntoEnergyManagement, mIsProgramSelected, mDelayedStartTimeRemaining, state_text, mode_text, status_text);
 
-    // if (status_formatted_buffer != NULL)
+    // TODO Clean up the memory!
+    //
+    // if (status_formatted_buffer != NULL)ccc
     // {
     //     free(status_formatted_buffer);
     // }
@@ -418,7 +412,7 @@ void DishwasherManager::ProgressProgram()
     if (mDelayedStartTimeRemaining > 0)
     {
         mDelayedStartTimeRemaining--;
-        UpdateDishwasherDisplay();
+        // UpdateDishwasherDisplay();
     }
     else
     {
@@ -432,33 +426,37 @@ void DishwasherManager::ProgressProgram()
 
         if (mState == OperationalStateEnum::kRunning)
         {
-            mRunningTimeRemaining--;
+            mRunningTimeSecondsRemaining--;
 
             uint8_t current_phase = 0;
 
-            if (mRunningTimeRemaining <= 0)
+            if (mRunningTimeSecondsRemaining <= 0)
             {
                 current_phase = 0;
                 EndProgram();
             }
-            else if (mRunningTimeRemaining < 5)
+            else if (mRunningTimeSecondsRemaining < 5)
             {
                 current_phase = 4;
             }
-            else if (mRunningTimeRemaining < 10)
+            else if (mRunningTimeSecondsRemaining < 10)
             {
                 current_phase = 3;
             }
-            else if (mRunningTimeRemaining < 15)
+            else if (mRunningTimeSecondsRemaining < 15)
             {
                 current_phase = 2;
             }
-            else if (mRunningTimeRemaining < 20)
+            else if (mRunningTimeSecondsRemaining < 20)
             {
                 current_phase = 1;
             }
 
             UpdateCurrentPhase(current_phase);
+
+            mRunningTimeMinutesRemaining = mRunningTimeSecondsRemaining/60;
+
+            DishwasherMgr().UpdateDishwasherDisplay();
         }
     }
 }
@@ -468,7 +466,6 @@ static void UpdateOperationalStatePhaseWorkHandler(intptr_t context)
     ESP_LOGI(TAG, "UpdateOperationalStatePhaseWorkHandler()");
     DataModel::Nullable<uint8_t> phase = (DataModel::Nullable<uint8_t>)context;
     OperationalState::GetInstance()->SetCurrentPhase(phase);
-    DishwasherMgr().UpdateDishwasherDisplay();
 }
 
 void DishwasherManager::UpdateCurrentPhase(uint8_t phase)
@@ -477,7 +474,10 @@ void DishwasherManager::UpdateCurrentPhase(uint8_t phase)
 
     // This is one way to perform safe changes to the Matter stack.
     //
-    chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateOperationalStatePhaseWorkHandler, mPhase);
+    if (OperationalState::GetInstance()->GetCurrentPhase() != phase)
+    {
+        chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateOperationalStatePhaseWorkHandler, mPhase);
+    }
 
     // This is another.
     //

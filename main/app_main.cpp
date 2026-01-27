@@ -40,6 +40,16 @@ using namespace esp_matter::endpoint;
 using namespace esp_matter::cluster;
 using namespace chip::app::Clusters::DeviceEnergyManagement;
 
+static void ShowCommissioningCodeHandler(intptr_t arg)
+{
+    StatusDisplayMgr().ShowCommissioningCode();
+}
+
+static void HideCommissioningCodeHandler(intptr_t context)
+{
+    StatusDisplayMgr().HideCommissioningCode();
+}
+
 static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 {
     switch (event->Type)
@@ -83,7 +93,10 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 
         if (GetQRCode(qrCode, payload) == CHIP_NO_ERROR)
         {
-            StatusDisplayMgr().ShowCommissioningCode(qrCode);
+            ESP_LOGI(TAG,"Generated QR CODE [%d]: %s", qrCode.size(), qrCode.data());
+            
+            StatusDisplayMgr().SetCommissioningCode(qrCode.data(), qrCode.size());
+            chip::DeviceLayer::PlatformMgr().ScheduleWork(ShowCommissioningCodeHandler, reinterpret_cast<intptr_t>(&qrCode));
         }
         else
         {
@@ -94,6 +107,7 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 
     case chip::DeviceLayer::DeviceEventType::kCommissioningWindowClosed:
         ESP_LOGI(TAG, "Commissioning window closed");
+        //chip::DeviceLayer::PlatformMgr().ScheduleWork(HideCommissioningCodeHandler, reinterpret_cast<intptr_t>(nullptr));
         break;
 
     case chip::DeviceLayer::DeviceEventType::kBLEDeinitialized:
@@ -192,14 +206,12 @@ extern "C" void app_main()
 
     // Add the DishwasherMode cluster.
     //
-    static DishwasherModeDelegate dish_washer_mode_delegate;
+    //static DishwasherModeDelegate dish_washer_mode_delegate;
 
     esp_matter::cluster::dish_washer_mode::config_t dish_washer_mode_config;
 
-    // Setting the delegate this way doesn't work.
-    //
     // dish_washer_mode_config.delegate = &dish_washer_mode_delegate;
-    dish_washer_mode_config.current_mode = DishwasherMode::ModeNormal;
+    // dish_washer_mode_config.current_mode = DishwasherMode::ModeNormal;
 
     esp_matter::cluster_t *dish_washer_mode_cluster = esp_matter::cluster::dish_washer_mode::create(endpoint, &dish_washer_mode_config, CLUSTER_FLAG_SERVER);
     ABORT_APP_ON_FAILURE(dish_washer_mode_cluster != nullptr, ESP_LOGE(TAG, "Failed to create dishwashermode cluster"));

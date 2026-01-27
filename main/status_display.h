@@ -9,8 +9,6 @@
 
 #include <inttypes.h>
 
-#include "qrcode.h"
-
 enum State {
   STOPPED,
   RUNNING,
@@ -30,13 +28,15 @@ public:
     void TurnOn();
     void TurnOff();
 
-    void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool programSelected, int32_t startsIn, const char *state_text, const char *mode_text, const char *status_text);
+    void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, int32_t startsInMinutes, int32_t runningTimeRemaining, const char *state_text, const char *mode_text);
+    //void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool programSelected, int32_t startsIn, const char *state_text, const char *mode_text, const char *status_text);
 
     void ShowResetOptions();
     void HideResetOptions();
 
-    void PrintQRCode(esp_qrcode_handle_t qrcode);
-    void ShowCommissioningCode(chip::MutableCharSpan qrCode);
+    void SetCommissioningCode(char *data, size_t size);
+    void ShowCommissioningCode();
+    void HideCommissioningCode();
 
 private:
     friend StatusDisplay & StatusDisplayMgr(void);
@@ -44,9 +44,12 @@ private:
 
     bool mScreenOn = false;
 
+    char *mCommissioningCode;
+
     lv_disp_t *mDisplayHandle;
     esp_lcd_panel_handle_t mPanelHandle;
 
+    lv_obj_t *mQRCode;
     lv_obj_t *mStatusLabel;
     lv_obj_t *mStateLabel;
     lv_obj_t *mSelectedProgramLabel;
@@ -59,7 +62,10 @@ private:
     lv_obj_t *mMenuHeaderLabel;
     lv_obj_t *mEnergyManagementOptOutLabel;
     lv_obj_t *mEnergyManagementOptInLabel;
-   
+
+    bool mIsShowingMenu = false;
+    uint32_t mRunningTimeRemaining = 0;
+    char *mModeText = NULL;
 };
 
 inline StatusDisplay & StatusDisplayMgr(void)

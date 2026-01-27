@@ -61,8 +61,11 @@ private:
     OperationalState::OperationalStateEnum mState;
     uint8_t mMode;
     uint8_t mPhase;
-    uint32_t mRunningTimeRemaining;
+    uint32_t mRunningTimeSecondsRemaining;
+    uint32_t mRunningTimeMinutesRemaining;
+
     uint32_t mDelayedStartTimeRemaining;
+
     bool mOptedIntoEnergyManagement = false;
 
     uint32_t mCurrentForecastId = 0;

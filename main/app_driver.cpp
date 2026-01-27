@@ -121,24 +121,24 @@ OperationalState::OperationalStateDelegate *OperationalState::GetDelegate()
     return gOperationalStateDelegate;
 }
 
-// void emberAfOperationalStateClusterInitCallback(chip::EndpointId endpointId)
-// {
-//     ESP_LOGI(TAG, "emberAfOperationalStateClusterInitCallback()");
+void emberAfOperationalStateClusterInitCallback(chip::EndpointId endpointId)
+{
+    ESP_LOGI(TAG, "emberAfOperationalStateClusterInitCallback()");
 
-//     VerifyOrDie(endpointId == 1); // this cluster is only enabled for endpoint 1.
-//     VerifyOrDie(gOperationalStateInstance == nullptr && gOperationalStateDelegate == nullptr);
+    VerifyOrDie(endpointId == 1); // this cluster is only enabled for endpoint 1.
+    VerifyOrDie(gOperationalStateInstance == nullptr && gOperationalStateDelegate == nullptr);
 
-//     gOperationalStateDelegate = new OperationalStateDelegate;
+    gOperationalStateDelegate = new OperationalStateDelegate;
 
-//     gOperationalStateInstance = new OperationalState::Instance(gOperationalStateDelegate, endpointId);
-//     gOperationalStateInstance->SetOperationalState(to_underlying(OperationalState::OperationalStateEnum::kStopped));
-//     gOperationalStateInstance->SetCurrentPhase(0);
-//     gOperationalStateInstance->Init();
+    gOperationalStateInstance = new OperationalState::Instance(gOperationalStateDelegate, endpointId);
+    gOperationalStateInstance->SetOperationalState(to_underlying(OperationalState::OperationalStateEnum::kStopped));
+    gOperationalStateInstance->SetCurrentPhase(0);
+    gOperationalStateInstance->Init();
 
-//     uint8_t value = to_underlying(OperationalStateEnum::kStopped);
-//     gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::OperationalState::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), &value);
-//     gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::CurrentPhase::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), 0);
-// }
+    uint8_t value = to_underlying(OperationalStateEnum::kStopped);
+    gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::OperationalState::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), &value);
+    gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::CurrentPhase::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), 0);
+}
 
 void emberAfOperationalStateClusterShutdownCallback(chip::EndpointId endpointId)
 {

@@ -147,6 +147,13 @@ esp_err_t StatusDisplay::Init()
     lv_style_init(&style);
     lv_style_set_text_font(&style, &lv_font_montserrat_48);
 
+    mQRCode = lv_qrcode_create(scr);
+    lv_qrcode_set_size(mQRCode, 200);
+    lv_qrcode_set_dark_color(mQRCode, lv_color_hex3(0xFF));
+    lv_qrcode_set_light_color(mQRCode, lv_color_hex3(0x00));
+    lv_obj_align(mQRCode, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
+
     mStateLabel = lv_label_create(scr);
 
     lv_label_set_text(mStateLabel, "STOPPED"); // TODO Get this default from the DishwasherManager
@@ -183,6 +190,9 @@ esp_err_t StatusDisplay::Init()
     lv_label_set_text(mStatusLabel, "");
     lv_obj_set_width(mStatusLabel, 400);
     lv_obj_align(mStatusLabel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_set_style_text_color(mStatusLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_add_style(mStatusLabel, &style, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(mStatusLabel, 20, LV_PART_MAIN);
 
     mResetMessageLabel = lv_label_create(scr);
 
@@ -199,7 +209,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_style_text_align(mYesButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_align(mYesButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_add_style(mYesButtonLabel, &style, LV_PART_MAIN);
-    
+
     mNoButtonLabel = lv_label_create(scr);
 
     lv_label_set_text(mNoButtonLabel, "No");
@@ -208,7 +218,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_style_text_align(mNoButtonLabel, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_align(mNoButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_add_style(mNoButtonLabel, &style, LV_PART_MAIN);
-    
+
     mStartsInLabel = lv_label_create(scr);
 
     lv_label_set_text(mStartsInLabel, "");
@@ -268,7 +278,7 @@ void StatusDisplay::TurnOn()
     lv_obj_clear_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
@@ -283,22 +293,35 @@ void StatusDisplay::TurnOff()
     lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
 
-void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, int32_t startsIn, const char *state_text, const char *mode_text, const char *status_text)
+void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, int32_t startsInMinutes, int32_t runningTimeRemaining, const char *state_text, const char *mode_text)
 {
     ESP_LOGI(TAG, "Updating the display");
 
     ESP_LOGI(TAG, "showingMenu: [%d]", showingMenu);
     ESP_LOGI(TAG, "hasOptedIn: [%d]", hasOptedIn);
     ESP_LOGI(TAG, "isProgramSelected: [%d]", isProgramSelected);
-    ESP_LOGI(TAG, "startsIn: [%lu]", startsIn);
+    ESP_LOGI(TAG, "startsIn: [%lu]", startsInMinutes);
     ESP_LOGI(TAG, "state_text: [%s]", state_text);
     ESP_LOGI(TAG, "mode_text: [%s]", mode_text);
-    ESP_LOGI(TAG, "status_text: [%s]", status_text);
+    // ESP_LOGI(TAG, "status_text: [%s]", status_text);
+
+    bool shouldRefresh = false;
+
+    bool hasMenuChanged = mIsShowingMenu != showingMenu;
+    bool hasRunningTimeChanged = mRunningTimeRemaining != runningTimeRemaining;
+    bool hasModeTextChanged = mModeText != mode_text;
+
+    shouldRefresh = hasMenuChanged || hasRunningTimeChanged || hasModeTextChanged;
+
+    ESP_LOGI(TAG, "hasMenuChanged: [%d]", hasMenuChanged);
+    ESP_LOGI(TAG, "hasRunningTimeChanged: [%d]", hasRunningTimeChanged);
+    ESP_LOGI(TAG, "hasModeTextChanged: [%d]", hasModeTextChanged);
+    ESP_LOGI(TAG, "shouldRefresh: [%d]", shouldRefresh);
 
     if (showingMenu)
     {
@@ -353,7 +376,7 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
         {
             // If there a delayed start?
             //
-            if (startsIn > 0)
+            if (startsInMinutes > 0)
             {
                 lv_label_set_text(mMenuButtonLabel, "CANCEL");
                 lv_obj_clear_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
@@ -363,10 +386,12 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
                 lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
 
                 char *starts_in_formatted_buffer = (char *)malloc(128);
-                snprintf(starts_in_formatted_buffer, 128, "Starting in %lus", startsIn);
+                snprintf(starts_in_formatted_buffer, 128, "Starting in %lu minutes", startsInMinutes);
 
                 lv_label_set_text(mStartsInLabel, starts_in_formatted_buffer);
                 lv_obj_clear_flag(mStartsInLabel, LV_OBJ_FLAG_HIDDEN);
+
+                free(starts_in_formatted_buffer);
             }
             else
             {
@@ -379,7 +404,23 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
                 lv_label_set_text(mStateLabel, state_text);
                 lv_label_set_text(mModeLabel, mode_text);
-                lv_label_set_text(mStatusLabel, status_text);
+
+                char *running_time_formatted_buffer = (char *)malloc(128);
+                if (runningTimeRemaining > 0)
+                {
+                    snprintf(running_time_formatted_buffer, 128, "Remaining: %lu minutes", runningTimeRemaining);
+                }
+                else
+                {
+                    snprintf(running_time_formatted_buffer, 128, "Remaining: < %lu minute", runningTimeRemaining);
+                }
+
+                lv_label_set_text(mStartsInLabel, running_time_formatted_buffer);
+                lv_obj_clear_flag(mStartsInLabel, LV_OBJ_FLAG_HIDDEN);
+
+                free(running_time_formatted_buffer);
+
+                // lv_label_set_text(mStatusLabel, status_text);
             }
         }
         else
@@ -392,13 +433,19 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
             lv_label_set_text(mStateLabel, state_text);
             lv_label_set_text(mModeLabel, mode_text);
-            lv_label_set_text(mStatusLabel, status_text);
+            //lv_label_set_text(mStatusLabel, status_text);
         }
     }
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    mIsShowingMenu = showingMenu;
+    mRunningTimeRemaining = runningTimeRemaining;
+    mModeText = (char *)mode_text;
 
-    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
+    if (shouldRefresh)
+    {
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+        ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
+    }
 }
 
 void StatusDisplay::ShowResetOptions()
@@ -419,23 +466,52 @@ void StatusDisplay::HideResetOptions()
 {
     ESP_LOGI(TAG, "Hide reset options");
 
-    lv_obj_clear_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_add_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
 }
 
-void StatusDisplay::ShowCommissioningCode(chip::MutableCharSpan qrCode)
+void StatusDisplay::SetCommissioningCode(char *qrCode, size_t size)
 {
-    lv_obj_t * qr = lv_qrcode_create(lv_screen_active());
-    lv_qrcode_set_size(qr, 200);
-    lv_qrcode_set_dark_color(qr, lv_color_hex3(0xFF));
-    lv_qrcode_set_light_color(qr, lv_color_hex3(0x00));
-    lv_obj_align(qr, LV_ALIGN_CENTER, 0, 0);
+    ESP_LOGI(TAG, "Set QR CODE [%d] %s", size, qrCode);
+    mCommissioningCode = (char *)calloc(1, size + 1); // Allow for null.
+    memcpy(mCommissioningCode, qrCode, size);
+}
 
-    lv_qrcode_update(qr, qrCode.data(), qrCode.size());
+void StatusDisplay::ShowCommissioningCode()
+{
+    ESP_LOGI(TAG, "ShowCommissioningCode()");
+
+    lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_remove_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
+    lv_qrcode_update(mQRCode, mCommissioningCode, strlen(mCommissioningCode));
+
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
+
+    free(mCommissioningCode);
+}
+
+void StatusDisplay::HideCommissioningCode()
+{
+    lv_obj_remove_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_add_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }

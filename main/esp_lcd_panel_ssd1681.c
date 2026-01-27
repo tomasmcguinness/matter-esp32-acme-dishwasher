@@ -85,14 +85,16 @@ static esp_err_t panel_epaper_wait_busy(esp_lcd_panel_t *panel)
             vTaskDelay(pdMS_TO_TICKS(15));
             wait_count++;
 
-            if (wait_count >= 33)
-            {
-                ESP_LOGI(TAG, "Won't wait any longer!");
-                return ESP_OK;
-            }
+            // Wait 2 seconds.
+            //
+            // if (wait_count >= 66)
+            // {
+            //     ESP_LOGI(TAG, "Won't wait any longer!");
+            //     return ESP_OK;
+            // }
         }
 
-        ESP_LOGI(TAG, "Display is no longer busy!");
+        ESP_LOGI(TAG, "Display is no longer busy after waiting %d loops!", wait_count);
 
         return ESP_OK;
     }
@@ -119,6 +121,8 @@ esp_err_t epaper_panel_refresh_screen(esp_lcd_panel_t *panel)
     ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(epaper_panel->io, SSD1681_CMD_ACTIVE_DISP_UPDATE_SEQ, NULL, 0), TAG, "SSD1681_CMD_ACTIVE_DISP_UPDATE_SEQ err");
 
     ESP_LOGI(TAG, "epaper_panel_refresh_screen - command sent");
+
+    panel_epaper_wait_busy(panel);
 
     return ESP_OK;
 }
@@ -289,8 +293,6 @@ static esp_err_t epaper_panel_draw_bitmap(esp_lcd_panel_t *panel, int x_start, i
 
     epaper_panel_t *epaper_panel = __containerof(panel, epaper_panel_t, base);
 
-    panel_epaper_wait_busy(panel);
-
     // --- Calculate coordinates & sizes
     int len_x = abs(x_start - x_end);
     int len_y = abs(y_start - y_end);
@@ -299,6 +301,8 @@ static esp_err_t epaper_panel_draw_bitmap(esp_lcd_panel_t *panel, int x_start, i
     int buffer_size = len_x * len_y / 8;
 
     process_bitmap(panel, len_x, len_y, buffer_size, color_data);
+
+    //panel_epaper_wait_busy(panel);
 
     ESP_RETURN_ON_ERROR(panel_epaper_set_vram(epaper_panel->io, (uint8_t *)(epaper_panel->_framebuffer), NULL, (len_x * len_y / 8)), TAG, "panel_epaper_set_vram error");
 
@@ -368,7 +372,7 @@ static esp_err_t process_bitmap(esp_lcd_panel_t *panel, int len_x, int len_y, in
         }
     }
 
-    ESP_LOGI(TAG, "Rendered %d black pixels and %d white pixels (total: %d)", black_pixel_count, white_pixel_count, black_pixel_count + white_pixel_count);
+    ESP_LOGI(TAG, "processed %d black pixels and %d white pixels (total: %d)", black_pixel_count, white_pixel_count, black_pixel_count + white_pixel_count);
 
     return ESP_OK;
 }
