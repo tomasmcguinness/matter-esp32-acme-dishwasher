@@ -172,6 +172,7 @@ esp_err_t StatusDisplay::Init()
     lv_label_set_text(mSelectedProgramLabel, "Selected Program");
     lv_obj_set_width(mSelectedProgramLabel, 400);
     lv_obj_align(mSelectedProgramLabel, LV_ALIGN_LEFT_MID, 0, -30);
+    //lv_obj_add_flag(mSelectedProgramLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mSelectedProgramLabel, LV_OBJ_FLAG_HIDDEN);
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -185,6 +186,8 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_style_pad_left(mModeLabel, 20, LV_PART_MAIN);
     lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
 
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+
     mStatusLabel = lv_label_create(scr);
 
     lv_label_set_text(mStatusLabel, "");
@@ -194,30 +197,38 @@ esp_err_t StatusDisplay::Init()
     lv_obj_add_style(mStatusLabel, &style, LV_PART_MAIN);
     lv_obj_set_style_pad_left(mStatusLabel, 20, LV_PART_MAIN);
 
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+
     mResetMessageLabel = lv_label_create(scr);
 
-    lv_label_set_text(mResetMessageLabel, "Reset the device?");
+    lv_label_set_text(mResetMessageLabel, "RESET DEVICE?");
     lv_obj_set_width(mResetMessageLabel, 400);
     lv_obj_add_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_align(mResetMessageLabel, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_align(mResetMessageLabel, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_set_style_text_color(mResetMessageLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_add_style(mResetMessageLabel, &style, LV_PART_MAIN);
 
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+    
     mYesButtonLabel = lv_label_create(scr);
 
-    lv_label_set_text(mYesButtonLabel, "Yes");
+    lv_label_set_text(mYesButtonLabel, "YES");
     lv_obj_set_width(mYesButtonLabel, 400);
     lv_obj_add_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_align(mYesButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_align(mYesButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_align(mYesButtonLabel, LV_ALIGN_TOP_RIGHT, 0, 0);
     lv_obj_add_style(mYesButtonLabel, &style, LV_PART_MAIN);
+    lv_obj_set_style_text_color(mYesButtonLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 
     mNoButtonLabel = lv_label_create(scr);
 
-    lv_label_set_text(mNoButtonLabel, "No");
+    lv_label_set_text(mNoButtonLabel, "NO");
     lv_obj_set_width(mNoButtonLabel, 400);
     lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_style_text_align(mNoButtonLabel, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_align(mNoButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_text_align(mNoButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_align(mNoButtonLabel, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
     lv_obj_add_style(mNoButtonLabel, &style, LV_PART_MAIN);
+    lv_obj_set_style_text_color(mNoButtonLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 
     mStartsInLabel = lv_label_create(scr);
 
@@ -230,17 +241,20 @@ esp_err_t StatusDisplay::Init()
     mMenuButtonLabel = lv_label_create(scr);
 
     lv_label_set_text(mMenuButtonLabel, "MENU");
-    lv_obj_set_width(mMenuButtonLabel, 400);
-    lv_obj_set_style_text_align(mMenuButtonLabel, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(mMenuButtonLabel, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_width(mMenuButtonLabel, 50);
+    lv_obj_set_style_text_align(mMenuButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_align(mMenuButtonLabel, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_set_style_text_color(mMenuButtonLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 
     mMenuHeaderLabel = lv_label_create(scr);
 
-    lv_label_set_text(mMenuHeaderLabel, "Energy Mgr");
+    lv_label_set_text(mMenuHeaderLabel, "MENU");
     lv_obj_set_width(mMenuHeaderLabel, 400);
     lv_obj_add_flag(mMenuHeaderLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_text_align(mMenuHeaderLabel, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_align(mMenuHeaderLabel, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_align(mMenuHeaderLabel, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_text_color(mMenuHeaderLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_add_style(mMenuHeaderLabel, &style, LV_PART_MAIN);
 
     mEnergyManagementOptOutLabel = lv_label_create(scr);
 
@@ -259,7 +273,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_align(mEnergyManagementOptInLabel, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_set_style_text_align(mEnergyManagementOptInLabel, LV_TEXT_ALIGN_RIGHT, 0);
 
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 
@@ -298,14 +312,15 @@ void StatusDisplay::TurnOff()
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
 
-void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, int32_t startsInMinutes, int32_t runningTimeRemaining, const char *state_text, const char *mode_text)
+void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t timeRemaining, const char *state_text, const char *mode_text)
 {
     ESP_LOGI(TAG, "Updating the display");
 
     ESP_LOGI(TAG, "showingMenu: [%d]", showingMenu);
     ESP_LOGI(TAG, "hasOptedIn: [%d]", hasOptedIn);
     ESP_LOGI(TAG, "isProgramSelected: [%d]", isProgramSelected);
-    ESP_LOGI(TAG, "startsIn: [%lu]", startsInMinutes);
+    ESP_LOGI(TAG, "startsIn: [%u]", startsInMinutes);
+    ESP_LOGI(TAG, "timeRemaining: [%u]", timeRemaining);
     ESP_LOGI(TAG, "state_text: [%s]", state_text);
     ESP_LOGI(TAG, "mode_text: [%s]", mode_text);
     // ESP_LOGI(TAG, "status_text: [%s]", status_text);
@@ -313,15 +328,20 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
     bool shouldRefresh = false;
 
     bool hasMenuChanged = mIsShowingMenu != showingMenu;
-    bool hasRunningTimeChanged = mRunningTimeRemaining != runningTimeRemaining;
-    bool hasModeTextChanged = mModeText != mode_text;
+    bool hasTimeRemainingChanged = mTimeRemaining != timeRemaining;
+    bool hasModeTextChanged = strcmp(mModeText, mode_text) != 0;
 
-    shouldRefresh = hasMenuChanged || hasRunningTimeChanged || hasModeTextChanged;
+    shouldRefresh = hasMenuChanged || hasTimeRemainingChanged || hasModeTextChanged;
 
     ESP_LOGI(TAG, "hasMenuChanged: [%d]", hasMenuChanged);
-    ESP_LOGI(TAG, "hasRunningTimeChanged: [%d]", hasRunningTimeChanged);
+    ESP_LOGI(TAG, "hasTimeRemainingChanged: [%d]", hasTimeRemainingChanged);
     ESP_LOGI(TAG, "hasModeTextChanged: [%d]", hasModeTextChanged);
     ESP_LOGI(TAG, "shouldRefresh: [%d]", shouldRefresh);
+
+    if (!shouldRefresh)
+    {
+        return;
+    }
 
     if (showingMenu)
     {
@@ -385,8 +405,8 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
                 lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
 
-                char *starts_in_formatted_buffer = (char *)malloc(128);
-                snprintf(starts_in_formatted_buffer, 128, "Starting in %lu minutes", startsInMinutes);
+                char *starts_in_formatted_buffer = (char *)malloc(22);
+                snprintf(starts_in_formatted_buffer, 128, "Starts in %u minutes", startsInMinutes);
 
                 lv_label_set_text(mStartsInLabel, starts_in_formatted_buffer);
                 lv_obj_clear_flag(mStartsInLabel, LV_OBJ_FLAG_HIDDEN);
@@ -405,22 +425,24 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
                 lv_label_set_text(mStateLabel, state_text);
                 lv_label_set_text(mModeLabel, mode_text);
 
-                char *running_time_formatted_buffer = (char *)malloc(128);
-                if (runningTimeRemaining > 0)
+                char *time_remaining_formatted_buffer = (char *)malloc(15);
+                if (timeRemaining > 1)
                 {
-                    snprintf(running_time_formatted_buffer, 128, "Remaining: %lu minutes", runningTimeRemaining);
+                    snprintf(time_remaining_formatted_buffer, 15, "%u minutes", timeRemaining);
+                }
+                else if (timeRemaining == 1)
+                {
+                    snprintf(time_remaining_formatted_buffer, 15, "%u minute", timeRemaining);
                 }
                 else
                 {
-                    snprintf(running_time_formatted_buffer, 128, "Remaining: < %lu minute", runningTimeRemaining);
+                    snprintf(time_remaining_formatted_buffer, 15, "< %u minute", timeRemaining);
                 }
 
-                lv_label_set_text(mStartsInLabel, running_time_formatted_buffer);
-                lv_obj_clear_flag(mStartsInLabel, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
+                lv_label_set_text(mStatusLabel, time_remaining_formatted_buffer);
 
-                free(running_time_formatted_buffer);
-
-                // lv_label_set_text(mStatusLabel, status_text);
+                free(time_remaining_formatted_buffer);
             }
         }
         else
@@ -433,12 +455,12 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
             lv_label_set_text(mStateLabel, state_text);
             lv_label_set_text(mModeLabel, mode_text);
-            //lv_label_set_text(mStatusLabel, status_text);
+            // lv_label_set_text(mStatusLabel, status_text);
         }
     }
 
     mIsShowingMenu = showingMenu;
-    mRunningTimeRemaining = runningTimeRemaining;
+    mTimeRemaining = timeRemaining;
     mModeText = (char *)mode_text;
 
     if (shouldRefresh)
@@ -450,16 +472,20 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
 void StatusDisplay::ShowResetOptions()
 {
-    ESP_LOGI(TAG, "Show reset options");
+    ESP_LOGI(TAG, "Showing reset options");
 
     lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
 
-    lv_obj_clear_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(250 / portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
 
 void StatusDisplay::HideResetOptions()
@@ -474,6 +500,10 @@ void StatusDisplay::HideResetOptions()
     lv_obj_add_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
+    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }
 
 void StatusDisplay::SetCommissioningCode(char *qrCode, size_t size)

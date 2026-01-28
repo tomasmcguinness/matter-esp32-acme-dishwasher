@@ -28,7 +28,7 @@ public:
     void TurnOn();
     void TurnOff();
 
-    void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, int32_t startsInMinutes, int32_t runningTimeRemaining, const char *state_text, const char *mode_text);
+    void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t runningTimeRemaining, const char *state_text, const char *mode_text);
     //void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool programSelected, int32_t startsIn, const char *state_text, const char *mode_text, const char *status_text);
 
     void ShowResetOptions();
@@ -64,8 +64,8 @@ private:
     lv_obj_t *mEnergyManagementOptInLabel;
 
     bool mIsShowingMenu = false;
-    uint32_t mRunningTimeRemaining = 0;
-    char *mModeText = NULL;
+    uint8_t mTimeRemaining = 0;
+    char *mModeText = "";
 };
 
 inline StatusDisplay & StatusDisplayMgr(void)

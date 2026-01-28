@@ -159,8 +159,8 @@ void DishwasherManager::StartProgram()
     mRunningTimeSecondsRemaining = 1800 + (mMode * 1800);
     mPhase = 0;
 
-    // UpdateCurrentPhase(mPhase);
-    // UpdateOperationState(OperationalStateEnum::kRunning);
+    UpdateCurrentPhase(mPhase);
+    UpdateOperationState(OperationalStateEnum::kRunning);
 
     // Configure the forecast for the selected program.
     //
@@ -637,6 +637,14 @@ void DishwasherManager::SelectPreviousMode()
     if (!mIsPoweredOn)
     {
         ESP_LOGI(TAG, "Dishwasher is off, cannot change mode");
+        return;
+    }
+
+      ESP_LOGI(TAG, "SelectPreviousMode called!");
+
+    if (mState != OperationalStateEnum::kStopped)
+    {
+        ESP_LOGI(TAG, "Mode can only be changed when dishwasher is stopped!");
         return;
     }
 

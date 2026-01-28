@@ -62,7 +62,7 @@ private:
     uint8_t mMode;
     uint8_t mPhase;
     uint32_t mRunningTimeSecondsRemaining;
-    uint32_t mRunningTimeMinutesRemaining;
+    uint8_t mRunningTimeMinutesRemaining;
 
     uint32_t mDelayedStartTimeRemaining;
 
