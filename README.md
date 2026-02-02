@@ -1,6 +1,6 @@
-# ESP32 Tiny Matter Dishwasher
+# Matter ESP32 ACME Dishwasher
 
-This code creates a "working" dishwasher that can be connected to and controlled via the Matter Protocol. Powered by the ESP32, it supports most of the Matter Dishwasher devicetype with the mandatory OperationalState cluster as well as the optional OnOff and DishwasherMode clusters.
+This code creates a "working" dishwasher that can be connected to and controlled via the Matter Protocol. Powered by the ESP32 and designed for the Crowpanel 4.2" e-ink display , it supports most of the Matter Dishwasher devicetype with the mandatory OperationalState cluster as well as the optional OnOff and DishwasherMode clusters.
 
 I've made a YouTube video which gives a demonstration: 
 https://youtu.be/BGIULIQ3aqs
