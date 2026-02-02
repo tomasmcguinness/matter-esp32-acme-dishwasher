@@ -4,8 +4,10 @@ This code creates a "working" dishwasher that can be connected to and controlled
 
 > [!note]
 > This project started as the Tiny Dishwasher. You can find the original repository over here - https://github.com/tomasmcguinness/matter-esp32-tiny-dishwasher
+
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/e3f9beab-130a-4803-9231-6faa0ba7f438" />
  
-I've made a YouTube video which gives a demonstration: 
+I've made a YouTube video which gives a demonstration of the original version: 
 https://youtu.be/BGIULIQ3aqs
 
 I've pull all the blog posts I have written on this subject into a single place
