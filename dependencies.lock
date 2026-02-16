@@ -47,73 +47,71 @@ dependencies:
       require: private
       version: '>=4.3'
     source:
-      registry_url: https://components.espressif.com/
+      registry_url: https://components.espressif.com
       type: service
     version: 1.1.4
   espressif/esp_diag_data_store:
-    component_hash: c1e5cf62f545d2b136db299f4df1b228b9840be5bc3410c9ad2d2a882b5c0d64
+    component_hash: 93f20de81abb791b4482f1bc99afdc24b25c3ee42aacceeb636e9943e677b1c5
     dependencies:
     - name: idf
       require: private
-      version: '>=4.1'
+      version: '>=5.1'
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 1.0.2
+    version: 1.1.0
   espressif/esp_diagnostics:
-    component_hash: 5ea8e8da8217ed9ed778db3973139e726e17cd27ef5cf6429c787d19226c79f3
+    component_hash: 3a343e70981039e1e8840754ab02a7f4cdc3823569e4962d0b3f176a0a481488
     dependencies:
-    - name: idf
-      require: private
-      version: '>=4.1'
     - name: espressif/rmaker_common
       registry_url: https://components.espressif.com
       require: private
-      version: ~1.4.0
+      version: ^1.5
+    - name: idf
+      require: private
+      version: '>=5.1'
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 1.2.1
+    version: 1.3.1
   espressif/esp_encrypted_img:
-    component_hash: 1c34d5b0e70a3878e63fe2bedb00824bcf83c30d9b020029c38400d0d14fe182
+    component_hash: e5a065c140fbc6a69a1de4fa1731b7596cc34a4a50b57913b2dc34c9ad3a0a70
     dependencies:
     - name: idf
       require: private
       version: '>=4.4'
     source:
-      registry_url: https://components.espressif.com/
+      registry_url: https://components.espressif.com
       type: service
-    version: 2.1.0
+    version: 2.3.0
   espressif/esp_insights:
-    component_hash: 4015c524b9955528f941268cf080174076b195800de910d061efc46113bc2e0c
+    component_hash: c7584927b81f9a55dfa6c8334968cf57b7cb662bfb1c7ac82856764db174ff33
     dependencies:
-    - name: idf
-      require: private
-      version: '>=4.1'
     - name: espressif/cbor
       registry_url: https://components.espressif.com
       require: private
-      rules:
-      - if: idf_version >=5.0
       version: ~0.6
     - name: espressif/esp_diag_data_store
       registry_url: https://components.espressif.com
       require: private
-      version: 1.0.2
+      version: 1.1.0
     - name: espressif/esp_diagnostics
       registry_url: https://components.espressif.com
       require: private
-      version: 1.2.1
+      version: '>=1.3.0'
     - name: espressif/rmaker_common
       registry_url: https://components.espressif.com
       require: private
-      version: ~1.4.0
+      version: ^1.5
+    - name: idf
+      require: private
+      version: '>=5.1'
     source:
-      registry_url: https://components.espressif.com/
+      registry_url: https://components.espressif.com
       type: service
-    version: 1.2.2
+    version: 1.3.2
   espressif/esp_lvgl_port:
-    component_hash: f872401524cb645ee6ff1c9242d44fb4ddcfd4d37d7be8b9ed3f4e85a404efcd
+    component_hash: 88bbda87376ae20fabfbb5d794ed78d23b3b4a186ecfafecf2edbf06223fd6c9
     dependencies:
     - name: idf
       require: private
@@ -125,7 +123,65 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 2.7.0
+    version: 2.7.1
+  espressif/esp_matter:
+    component_hash: b8cbd5ecfc031c48348e7de377f06c1c4f4d92d9179b05b04e664db6a53954d5
+    dependencies:
+    - name: espressif/esp_delta_ota
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=4.3
+      version: ^1.1.0
+    - name: espressif/esp_encrypted_img
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=4.4
+      version: 2.3.0
+    - name: espressif/esp_insights
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=5.0
+      - if: target != esp32h2
+      version: ^1.2.4
+    - name: espressif/esp_rcp_update
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=5.0
+      version: ~1.3.0
+    - name: espressif/esp_secure_cert_mgr
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=4.3
+      version: ^2.5.0
+    - name: espressif/esp_wifi_remote
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: target in [esp32p4]
+      version: ^0.7.0
+    - name: espressif/json_generator
+      registry_url: https://components.espressif.com
+      require: private
+      version: ~1.1.0
+    - name: espressif/json_parser
+      registry_url: https://components.espressif.com
+      require: private
+      version: ~1.0.0
+    - name: espressif/mdns
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=5.0
+      version: ^1.1.0
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.4.2~1
   espressif/esp_rcp_update:
     component_hash: 37f535edd527a45faeaad649c0c56af36e5399074e52d83f0990fce466844dde
     dependencies:
@@ -137,7 +193,7 @@ dependencies:
       require: private
       version: '>=5.0'
     source:
-      registry_url: https://components.espressif.com/
+      registry_url: https://components.espressif.com
       type: service
     version: 1.3.1
   espressif/esp_secure_cert_mgr:
@@ -147,7 +203,7 @@ dependencies:
       require: private
       version: '>=4.3'
     source:
-      registry_url: https://components.espressif.com/
+      registry_url: https://components.espressif.com
       type: service
     version: 2.8.0
   espressif/jsmn:
@@ -164,7 +220,7 @@ dependencies:
     component_hash: 45033e1c199b13f1c8c1b544fb7d4e2df6a8e3071ebdcb1b22582b61a7974ff2
     dependencies: []
     source:
-      registry_url: https://components.espressif.com/
+      registry_url: https://components.espressif.com
       type: service
     version: 1.1.2
   espressif/json_parser:
@@ -177,7 +233,7 @@ dependencies:
       - if: idf_version >=5.0
       version: ~1.1
     source:
-      registry_url: https://components.espressif.com/
+      registry_url: https://components.espressif.com
       type: service
     version: 1.0.3
   espressif/mdns:
@@ -187,16 +243,19 @@ dependencies:
       require: private
       version: '>=5.0'
     source:
-      registry_url: https://components.espressif.com/
+      registry_url: https://components.espressif.com
       type: service
     version: 1.9.1
   espressif/rmaker_common:
-    component_hash: f8e531264d62cf01ea1bcc80d7436e09e5819132056ca22c3869f5b0e2000c13
-    dependencies: []
+    component_hash: f7c08e1ae648085b32d219c7c2598685f88e889dcaf31d7695638682d4456562
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.1'
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 1.4.12
+    version: 1.6.0
   idf:
     source:
       type: idf
@@ -210,16 +269,9 @@ dependencies:
     version: 9.4.0
 direct_dependencies:
 - espressif/button
-- espressif/esp_delta_ota
-- espressif/esp_encrypted_img
-- espressif/esp_insights
 - espressif/esp_lvgl_port
-- espressif/esp_rcp_update
-- espressif/esp_secure_cert_mgr
-- espressif/json_generator
-- espressif/json_parser
-- espressif/mdns
+- espressif/esp_matter
 - lvgl/lvgl
-manifest_hash: 6316616893162002db7e3d640f758c8bbe27ec886d5a36d3e76e57fcec34654e
+manifest_hash: 668fcc694c9ae2979a700b700168bd21cea93b76127fcbd92c8c76272560c107
 target: esp32s3
 version: 2.0.0

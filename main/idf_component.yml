@@ -2,3 +2,4 @@ dependencies:
   espressif/button: 3.5.0
   espressif/esp_lvgl_port: ^2.7.0
   lvgl/lvgl: ^9.4
+  espressif/esp_matter: ^1.4.0

@@ -83,5 +83,6 @@
         "typeinfo": "cpp",
         "variant": "cpp"
     },
-    "idf.pythonInstallPath": "/usr/bin/python3"
+    "idf.pythonInstallPath": "/usr/bin/python3",
+    "idf.currentSetup": "/home/tomasmcguinness/esp/esp-idf"
 }

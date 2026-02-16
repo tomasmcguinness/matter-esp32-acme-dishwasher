@@ -13,6 +13,8 @@
 
 static const char *TAG = "dishwasher_manager";
 
+#define PIN_NUM_INDICATOR_LED 41
+
 using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
@@ -34,28 +36,20 @@ esp_err_t DishwasherManager::Init()
     ESP_LOGI(TAG, "Initializing DishwasherManager");
     ModeSelectorMgr().Init();
 
+    gpio_config_t io_conf = {};
+    io_conf.pin_bit_mask = (1ULL << PIN_NUM_INDICATOR_LED);
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&io_conf);
+
     xTaskCreate(ProgramTick, "ProgramTick", 4096, NULL, tskIDLE_PRIORITY, NULL);
 
     return ESP_OK;
 }
 
-void DishwasherManager::PresentReset()
-{
-    mIsShowingReset = true;
-    StatusDisplayMgr().ShowResetOptions();
-}
-
 void DishwasherManager::HandleOnOffClicked()
 {
-    if (mIsShowingReset)
-    {
-        StatusDisplayMgr().HideResetOptions();
-        mIsShowingReset = false;
-    }
-    else
-    {
-        TogglePower();
-    }
+    TogglePower();
 }
 
 void DishwasherManager::HandleStartClicked()
@@ -66,15 +60,7 @@ void DishwasherManager::HandleStartClicked()
         return;
     }
 
-    if (mIsShowingReset)
-    {
-        esp_matter::factory_reset();
-        mIsShowingReset = false;
-    }
-    else
-    {
-        ToggleProgram();
-    }
+    ToggleProgram();
 }
 
 uint32_t DishwasherManager::GetTimeRemaining()
@@ -151,6 +137,9 @@ chip::app::Clusters::DeviceEnergyManagement::Structs::ForecastStruct::Type sFore
 
 void DishwasherManager::StartProgram()
 {
+    gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, true);
+    ESP_LOGI(TAG, "Applied power to LED");
+    
     mIsProgramSelected = true;
 
     // 30 minutes in seconds = 1800
@@ -296,6 +285,9 @@ void DishwasherManager::ResumeProgram()
 
 void DishwasherManager::StopProgram()
 {
+    gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, false);
+    ESP_LOGI(TAG, "Removed power to LED");
+    
     mIsProgramSelected = false;
     mDelayedStartTimeRemaining = 0;
     mRunningTimeSecondsRemaining = 0;
@@ -328,7 +320,7 @@ void DishwasherManager::UpdateDishwasherDisplay()
     ESP_LOGI(TAG, "UpdateDishwasherDisplay called!");
 
     char state_text[32]{};
-    char mode_text[32]{};
+    char mode_text[10]{};
     char status_text[32]{};
 
     switch (mState)
@@ -354,7 +346,7 @@ void DishwasherManager::UpdateDishwasherDisplay()
 
     if (delegate != nullptr)
     {
-        char mode_buffer[32];
+        char mode_buffer[10];
         MutableCharSpan label(mode_buffer);
 
         delegate->GetModeLabelByIndex(mMode, label);
@@ -366,7 +358,7 @@ void DishwasherManager::UpdateDishwasherDisplay()
     }
     else
     {
-        strncpy(mode_text, "ERR: NO DELEGATE", 32);
+        strncpy(mode_text, "NO MODE", 7);
     }
 
     if (mState == OperationalStateEnum::kRunning || mState == OperationalStateEnum::kPaused)
@@ -383,7 +375,6 @@ void DishwasherManager::UpdateDishwasherDisplay()
     }
 
     StatusDisplayMgr().UpdateDisplay(mIsShowingMenu, mOptedIntoEnergyManagement, mIsProgramSelected, mDelayedStartTimeRemaining, mRunningTimeMinutesRemaining, state_text, mode_text);
-    //StatusDisplayMgr().UpdateDisplay(mIsShowingMenu, mOptedIntoEnergyManagement, mIsProgramSelected, mDelayedStartTimeRemaining, state_text, mode_text, status_text);
 
     // TODO Clean up the memory!
     //
@@ -474,10 +465,10 @@ void DishwasherManager::UpdateCurrentPhase(uint8_t phase)
 
     // This is one way to perform safe changes to the Matter stack.
     //
-    if (OperationalState::GetInstance()->GetCurrentPhase() != phase)
-    {
-        chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateOperationalStatePhaseWorkHandler, mPhase);
-    }
+    // if (OperationalState::GetInstance()->GetCurrentPhase() != phase)
+    // {
+    //     chip::DeviceLayer::PlatformMgr().ScheduleWork(UpdateOperationalStatePhaseWorkHandler, mPhase);
+    // }
 
     // This is another.
     //

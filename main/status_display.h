@@ -28,15 +28,12 @@ public:
     void TurnOn();
     void TurnOff();
 
-    void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t runningTimeRemaining, const char *state_text, const char *mode_text);
-    //void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool programSelected, int32_t startsIn, const char *state_text, const char *mode_text, const char *status_text);
+    void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t runningTimeRemaining, char state_text[32], char mode_text[10]);
 
     void ShowResetOptions();
     void HideResetOptions();
 
     void SetCommissioningCode(char *data, size_t size);
-    void ShowCommissioningCode();
-    void HideCommissioningCode();
 
 private:
     friend StatusDisplay & StatusDisplayMgr(void);
@@ -54,18 +51,17 @@ private:
     lv_obj_t *mStateLabel;
     lv_obj_t *mSelectedProgramLabel;
     lv_obj_t *mModeLabel;
-    lv_obj_t *mResetMessageLabel;
-    lv_obj_t *mYesButtonLabel;
-    lv_obj_t *mNoButtonLabel;
     lv_obj_t *mStartsInLabel;
     lv_obj_t *mMenuButtonLabel;
     lv_obj_t *mMenuHeaderLabel;
     lv_obj_t *mEnergyManagementOptOutLabel;
     lv_obj_t *mEnergyManagementOptInLabel;
+    lv_obj_t *mOnOffButtonLabel;
 
     bool mIsShowingMenu = false;
     uint8_t mTimeRemaining = 0;
-    char *mModeText = "";
+    char mStateText[32];
+    char mModeText[15];
 };
 
 inline StatusDisplay & StatusDisplayMgr(void)

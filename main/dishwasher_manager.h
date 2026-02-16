@@ -75,7 +75,6 @@ private:
     bool mIsProgramSelected = false;
 
     bool mIsPoweredOn = false;
-    bool mIsShowingReset = false;
 };
 
 inline DishwasherManager &DishwasherMgr(void)

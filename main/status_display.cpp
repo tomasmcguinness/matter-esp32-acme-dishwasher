@@ -32,7 +32,6 @@ static const char *TAG = "status_display";
 #define PIN_NUM_DC 46
 #define PIN_NUM_RST 47
 #define PIN_NUM_BUSY 48
-#define PIN_NUM_INDICATOR_LED 41
 #define PIN_NUM_LCD_POWER 7
 
 StatusDisplay StatusDisplay::sStatusDisplay;
@@ -81,11 +80,11 @@ esp_err_t StatusDisplay::Init()
             .reset_active_high = true,
         },
         .vendor_config = &epaper_ssd1681_config};
-    // gpio_install_isr_service(0);
+    
     ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1681(io_handle, &panel_config, &mPanelHandle));
 
     gpio_config_t io_conf = {};
-    io_conf.pin_bit_mask = ((1ULL << PIN_NUM_INDICATOR_LED) | (1ULL << PIN_NUM_LCD_POWER));
+    io_conf.pin_bit_mask = (1ULL << PIN_NUM_LCD_POWER);
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
     gpio_config(&io_conf);
@@ -143,9 +142,13 @@ esp_err_t StatusDisplay::Init()
 
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
 
-    static lv_style_t style;
-    lv_style_init(&style);
-    lv_style_set_text_font(&style, &lv_font_montserrat_48);
+    static lv_style_t large_style;
+    lv_style_init(&large_style);
+    lv_style_set_text_font(&large_style, &lv_font_montserrat_48);
+
+    static lv_style_t medium_style;
+    lv_style_init(&medium_style);
+    lv_style_set_text_font(&medium_style, &lv_font_montserrat_24);
 
     mQRCode = lv_qrcode_create(scr);
     lv_qrcode_set_size(mQRCode, 200);
@@ -162,7 +165,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_style_bg_color(mStateLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(mStateLabel, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_text_color(mStateLabel, lv_color_hex(0x000000), LV_PART_MAIN);
-    lv_obj_add_style(mStateLabel, &style, LV_PART_MAIN);
+    lv_obj_add_style(mStateLabel, &large_style, LV_PART_MAIN);
     lv_obj_set_style_pad_left(mStateLabel, 10, LV_PART_MAIN);
     lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
 
@@ -172,7 +175,6 @@ esp_err_t StatusDisplay::Init()
     lv_label_set_text(mSelectedProgramLabel, "Selected Program");
     lv_obj_set_width(mSelectedProgramLabel, 400);
     lv_obj_align(mSelectedProgramLabel, LV_ALIGN_LEFT_MID, 0, -30);
-    //lv_obj_add_flag(mSelectedProgramLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mSelectedProgramLabel, LV_OBJ_FLAG_HIDDEN);
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -182,7 +184,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_width(mModeLabel, 400);
     lv_obj_align(mModeLabel, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_set_style_text_color(mModeLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_add_style(mModeLabel, &style, LV_PART_MAIN);
+    lv_obj_add_style(mModeLabel, &large_style, LV_PART_MAIN);
     lv_obj_set_style_pad_left(mModeLabel, 20, LV_PART_MAIN);
     lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
 
@@ -194,41 +196,10 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_width(mStatusLabel, 400);
     lv_obj_align(mStatusLabel, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_set_style_text_color(mStatusLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_add_style(mStatusLabel, &style, LV_PART_MAIN);
+    lv_obj_add_style(mStatusLabel, &large_style, LV_PART_MAIN);
     lv_obj_set_style_pad_left(mStatusLabel, 20, LV_PART_MAIN);
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
-
-    mResetMessageLabel = lv_label_create(scr);
-
-    lv_label_set_text(mResetMessageLabel, "RESET DEVICE?");
-    lv_obj_set_width(mResetMessageLabel, 400);
-    lv_obj_add_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_align(mResetMessageLabel, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_set_style_text_color(mResetMessageLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_add_style(mResetMessageLabel, &style, LV_PART_MAIN);
-
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    
-    mYesButtonLabel = lv_label_create(scr);
-
-    lv_label_set_text(mYesButtonLabel, "YES");
-    lv_obj_set_width(mYesButtonLabel, 400);
-    lv_obj_add_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_style_text_align(mYesButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_align(mYesButtonLabel, LV_ALIGN_TOP_RIGHT, 0, 0);
-    lv_obj_add_style(mYesButtonLabel, &style, LV_PART_MAIN);
-    lv_obj_set_style_text_color(mYesButtonLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-
-    mNoButtonLabel = lv_label_create(scr);
-
-    lv_label_set_text(mNoButtonLabel, "NO");
-    lv_obj_set_width(mNoButtonLabel, 400);
-    lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_style_text_align(mNoButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_align(mNoButtonLabel, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
-    lv_obj_add_style(mNoButtonLabel, &style, LV_PART_MAIN);
-    lv_obj_set_style_text_color(mNoButtonLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
 
     mStartsInLabel = lv_label_create(scr);
 
@@ -241,10 +212,21 @@ esp_err_t StatusDisplay::Init()
     mMenuButtonLabel = lv_label_create(scr);
 
     lv_label_set_text(mMenuButtonLabel, "MENU");
-    lv_obj_set_width(mMenuButtonLabel, 50);
+    lv_obj_set_width(mMenuButtonLabel, 100);
     lv_obj_set_style_text_align(mMenuButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_align(mMenuButtonLabel, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_set_style_text_color(mMenuButtonLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_add_style(mMenuButtonLabel, &medium_style, LV_PART_MAIN);
+    lv_obj_add_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);  
+
+    mOnOffButtonLabel = lv_label_create(scr);
+
+    lv_label_set_text(mOnOffButtonLabel, "ON");
+    lv_obj_set_width(mOnOffButtonLabel, 50);
+    lv_obj_set_style_text_align(mOnOffButtonLabel, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_align(mOnOffButtonLabel, LV_ALIGN_BOTTOM_RIGHT, 0, -20);
+    lv_obj_set_style_text_color(mOnOffButtonLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_add_style(mOnOffButtonLabel, &medium_style, LV_PART_MAIN);
 
     mMenuHeaderLabel = lv_label_create(scr);
 
@@ -254,7 +236,7 @@ esp_err_t StatusDisplay::Init()
     lv_obj_set_style_text_align(mMenuHeaderLabel, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_align(mMenuHeaderLabel, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_style_text_color(mMenuHeaderLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_add_style(mMenuHeaderLabel, &style, LV_PART_MAIN);
+    lv_obj_add_style(mMenuHeaderLabel, &large_style, LV_PART_MAIN);
 
     mEnergyManagementOptOutLabel = lv_label_create(scr);
 
@@ -286,33 +268,47 @@ void StatusDisplay::TurnOn()
 {
     ESP_LOGI(TAG, "Turning display on");
 
-    gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, true);
-    ESP_LOGI(TAG, "Applied power to LED");
+    lvgl_port_lock(0);
 
+    lv_obj_add_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(mOnOffButtonLabel, "OFF");
+
+    lvgl_port_unlock();
 
     vTaskDelay(250 / portTICK_PERIOD_MS);
 
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
+
+    mScreenOn = true;
 }
 
 void StatusDisplay::TurnOff()
 {
     ESP_LOGI(TAG, "Turning display off");
 
-    gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, false);
-    ESP_LOGI(TAG, "Removed power to LED");
+    lvgl_port_lock(0);
 
+    lv_obj_clear_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_clear_flag(mOnOffButtonLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(mOnOffButtonLabel, "ON");
+
+    lvgl_port_unlock();
 
     vTaskDelay(250 / portTICK_PERIOD_MS);
 
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
+
+    mScreenOn = false;
 }
 
-void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t timeRemaining, const char *state_text, const char *mode_text)
+void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t timeRemaining, char state_text[32], char mode_text[10])
 {
     ESP_LOGI(TAG, "Updating the display");
 
@@ -329,12 +325,14 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
     bool hasMenuChanged = mIsShowingMenu != showingMenu;
     bool hasTimeRemainingChanged = mTimeRemaining != timeRemaining;
+    bool hasStateTextChanged = strcmp(mStateText, state_text) != 0;
     bool hasModeTextChanged = strcmp(mModeText, mode_text) != 0;
 
-    shouldRefresh = hasMenuChanged || hasTimeRemainingChanged || hasModeTextChanged;
+    shouldRefresh = hasMenuChanged || hasTimeRemainingChanged || hasStateTextChanged || hasModeTextChanged;
 
     ESP_LOGI(TAG, "hasMenuChanged: [%d]", hasMenuChanged);
     ESP_LOGI(TAG, "hasTimeRemainingChanged: [%d]", hasTimeRemainingChanged);
+    ESP_LOGI(TAG, "hasStateTextChanged: [%d]", hasStateTextChanged);
     ESP_LOGI(TAG, "hasModeTextChanged: [%d]", hasModeTextChanged);
     ESP_LOGI(TAG, "shouldRefresh: [%d]", shouldRefresh);
 
@@ -342,6 +340,8 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
     {
         return;
     }
+
+    lvgl_port_lock(0);
 
     if (showingMenu)
     {
@@ -420,48 +420,54 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
                 lv_obj_clear_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
-                lv_obj_clear_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
-
+                
                 lv_label_set_text(mStateLabel, state_text);
                 lv_label_set_text(mModeLabel, mode_text);
 
-                char *time_remaining_formatted_buffer = (char *)malloc(15);
-                if (timeRemaining > 1)
+                if(timeRemaining == 0) 
                 {
-                    snprintf(time_remaining_formatted_buffer, 15, "%u minutes", timeRemaining);
+                    lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
                 }
-                else if (timeRemaining == 1)
+                else 
                 {
-                    snprintf(time_remaining_formatted_buffer, 15, "%u minute", timeRemaining);
-                }
-                else
-                {
-                    snprintf(time_remaining_formatted_buffer, 15, "< %u minute", timeRemaining);
-                }
+                    lv_obj_clear_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
 
-                lv_obj_clear_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
-                lv_label_set_text(mStatusLabel, time_remaining_formatted_buffer);
+                    char *time_remaining_formatted_buffer = (char *)calloc(1, 15);
+                    
+                    if (timeRemaining > 1)
+                    {
+                        snprintf(time_remaining_formatted_buffer, 15, "%u minutes", timeRemaining);
+                    }
+                    else if (timeRemaining == 1)
+                    {
+                        snprintf(time_remaining_formatted_buffer, 15, "%u minute", timeRemaining);
+                    }
 
-                free(time_remaining_formatted_buffer);
+                    lv_label_set_text(mStatusLabel, time_remaining_formatted_buffer);
+
+                    free(time_remaining_formatted_buffer);
+                }
             }
         }
         else
         {
             lv_obj_clear_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
             lv_obj_clear_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
 
             lv_obj_add_flag(mStartsInLabel, LV_OBJ_FLAG_HIDDEN);
 
             lv_label_set_text(mStateLabel, state_text);
             lv_label_set_text(mModeLabel, mode_text);
-            // lv_label_set_text(mStatusLabel, status_text);
         }
     }
 
+    lvgl_port_unlock();
+
     mIsShowingMenu = showingMenu;
     mTimeRemaining = timeRemaining;
-    mModeText = (char *)mode_text;
+    memcpy(mStateText, state_text, 32);
+    memcpy(mModeText, mode_text, 10);
 
     if (shouldRefresh)
     {
@@ -470,78 +476,25 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
     }
 }
 
-void StatusDisplay::ShowResetOptions()
-{
-    ESP_LOGI(TAG, "Showing reset options");
-
-    lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
-
-    lv_obj_remove_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
-
-    vTaskDelay(250 / portTICK_PERIOD_MS);
-
-    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
-}
-
-void StatusDisplay::HideResetOptions()
-{
-    ESP_LOGI(TAG, "Hide reset options");
-
-    lv_obj_remove_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
-
-    lv_obj_add_flag(mResetMessageLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(mYesButtonLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(mNoButtonLabel, LV_OBJ_FLAG_HIDDEN);
-
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-
-    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
-}
-
 void StatusDisplay::SetCommissioningCode(char *qrCode, size_t size)
 {
     ESP_LOGI(TAG, "Set QR CODE [%d] %s", size, qrCode);
     mCommissioningCode = (char *)calloc(1, size + 1); // Allow for null.
     memcpy(mCommissioningCode, qrCode, size);
-}
 
-void StatusDisplay::ShowCommissioningCode()
-{
-    ESP_LOGI(TAG, "ShowCommissioningCode()");
-
-    lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
-
-    lv_obj_remove_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
+    lvgl_port_lock(0);
     lv_qrcode_update(mQRCode, mCommissioningCode, strlen(mCommissioningCode));
 
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    if(!mScreenOn) 
+    {
+        lv_obj_clear_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    lvgl_port_unlock();
+
+    vTaskDelay(250 / portTICK_PERIOD_MS);
 
     ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 
     free(mCommissioningCode);
-}
-
-void StatusDisplay::HideCommissioningCode()
-{
-    lv_obj_remove_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
-
-    lv_obj_add_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
-
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-
-    ESP_ERROR_CHECK(epaper_panel_refresh_screen(mPanelHandle));
 }

@@ -7,7 +7,7 @@
 */
 
 #include <esp_log.h>
-#include <app_priv.h>
+#include "app_priv.h"
 #include <app-common/zap-generated/attribute-type.h>
 #include <app-common/zap-generated/cluster-enums.h>
 #include <app/util/generic-callbacks.h>
@@ -160,7 +160,7 @@ static ModeBase::Instance *gDishwasherModeInstance = nullptr;
 CHIP_ERROR DishwasherModeDelegate::Init()
 {
     ESP_LOGI(TAG, "DishwasherModeDelegate::Init()");
-    gDishwasherModeInstance = mInstance;
+    //gDishwasherModeInstance = mInstance;
     return CHIP_NO_ERROR;
 }
 
@@ -372,7 +372,7 @@ OptOutStateEnum DeviceEnergyManagementDelegate::GetOptOutState()
 void DeviceEnergyManagementDelegate::SetOptOutState(OptOutStateEnum state)
 {
     mOptOutState = state;
-    MatterReportingAttributeChangeCallback(DeviceEnergyManagementDelegate::mEndpointId, DeviceEnergyManagement::Id, DeviceEnergyManagement::Attributes::OptOutState::Id);
+    //MatterReportingAttributeChangeCallback(DeviceEnergyManagementDelegate::mEndpointId, DeviceEnergyManagement::Id, DeviceEnergyManagement::Attributes::OptOutState::Id);
 }
 
 CHIP_ERROR DeviceEnergyManagementDelegate::SetESAState(ESAStateEnum newValue)
@@ -422,7 +422,7 @@ CHIP_ERROR DeviceEnergyManagementDelegate::SetForecast(const chip::app::DataMode
 
     mForecast = forecast;
 
-    MatterReportingAttributeChangeCallback(DeviceEnergyManagementDelegate::mEndpointId, DeviceEnergyManagement::Id, DeviceEnergyManagement::Attributes::Forecast::Id);
+    //MatterReportingAttributeChangeCallback(DeviceEnergyManagementDelegate::mEndpointId, DeviceEnergyManagement::Id, DeviceEnergyManagement::Attributes::Forecast::Id);
 
     return CHIP_NO_ERROR;
 }
@@ -460,7 +460,7 @@ static void onoff_button_single_click_cb(void *args, void *user_data)
 static void onoff_button_long_press_start_cb(void *args, void *user_data)
 {
     ESP_LOGI(TAG, "OnOff Long Press Start");
-    DishwasherMgr().PresentReset();
+    chip::Server::GetInstance().ScheduleFactoryReset();
 }
 
 static void start_button_single_click_cb(void *args, void *user_data)

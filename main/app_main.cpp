@@ -13,10 +13,9 @@
 #include <esp_matter.h>
 #include <esp_matter_console.h>
 
-#include <common_macros.h>
-#include <app_priv.h>
+#include "app_priv.h"
 
-#include <app/server/OnboardingCodesUtil.h>
+//#include <app/server/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 #include <app-common/zap-generated/ids/Attributes.h> // For Attribute IDs
@@ -40,16 +39,6 @@ using namespace esp_matter::endpoint;
 using namespace esp_matter::cluster;
 using namespace chip::app::Clusters::DeviceEnergyManagement;
 
-static void ShowCommissioningCodeHandler(intptr_t arg)
-{
-    StatusDisplayMgr().ShowCommissioningCode();
-}
-
-static void HideCommissioningCodeHandler(intptr_t context)
-{
-    StatusDisplayMgr().HideCommissioningCode();
-}
-
 static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 {
     switch (event->Type)
@@ -65,6 +54,8 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 
     case chip::DeviceLayer::DeviceEventType::kCommissioningComplete:
         ESP_LOGI(TAG, "Commissioning complete");
+        StatusDisplayMgr().SetCommissioningCode("", 0);
+        DishwasherMgr().TurnOnPower();
         break;
 
     case chip::DeviceLayer::DeviceEventType::kFailSafeTimerExpired:
@@ -81,33 +72,30 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 
     case chip::DeviceLayer::DeviceEventType::kCommissioningWindowOpened:
     {
-        ESP_LOGI(TAG, "Commissioning window opened");
+        // ESP_LOGI(TAG, "Commissioning window opened");
 
-        chip::RendezvousInformationFlags rendezvoudFlags = chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE);
+        // chip::RendezvousInformationFlags rendezvoudFlags = chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE);
 
-        chip::PayloadContents payload;
-        GetPayloadContents(payload, rendezvoudFlags);
+        // chip::PayloadContents payload;
+        // GetPayloadContents(payload, rendezvoudFlags);
 
-        char payloadBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
-        chip::MutableCharSpan qrCode(payloadBuffer);
+        // char payloadBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+        // chip::MutableCharSpan qrCode(payloadBuffer);
 
-        if (GetQRCode(qrCode, payload) == CHIP_NO_ERROR)
-        {
-            ESP_LOGI(TAG,"Generated QR CODE [%d]: %s", qrCode.size(), qrCode.data());
-            
-            StatusDisplayMgr().SetCommissioningCode(qrCode.data(), qrCode.size());
-            chip::DeviceLayer::PlatformMgr().ScheduleWork(ShowCommissioningCodeHandler, reinterpret_cast<intptr_t>(&qrCode));
-        }
-        else
-        {
-            ESP_LOGE(TAG, "Failed to generate the commissioning QR code");
-        }
+        // if (GetQRCode(qrCode, payload) == CHIP_NO_ERROR)
+        // {
+        //     ESP_LOGI(TAG,"Generated QR CODE [%d]: %s", qrCode.size(), qrCode.data());
+        //     StatusDisplayMgr().SetCommissioningCode(qrCode.data(), qrCode.size());
+        // }
+        // else
+        // {
+        //     ESP_LOGE(TAG, "Failed to generate the commissioning QR code");
+        // }
     }
         break;
 
     case chip::DeviceLayer::DeviceEventType::kCommissioningWindowClosed:
         ESP_LOGI(TAG, "Commissioning window closed");
-        //chip::DeviceLayer::PlatformMgr().ScheduleWork(HideCommissioningCodeHandler, reinterpret_cast<intptr_t>(nullptr));
         break;
 
     case chip::DeviceLayer::DeviceEventType::kBLEDeinitialized:
@@ -168,7 +156,7 @@ static esp_err_t app_attribute_update_cb(callback_type_t type, uint16_t endpoint
 
 static void esp_sntp_time_cb(struct timeval *tv)
 {
-    ESP_LOGI(TAG, "TIME SET!");
+    ESP_LOGI(TAG, "SNTP time has been set successfully!");
 }
 
 extern "C" void app_main()
@@ -181,7 +169,7 @@ extern "C" void app_main()
     /* Create a Matter node and add the mandatory Root Node device type on endpoint 0 */
     node::config_t node_config;
     node_t *node = node::create(&node_config, app_attribute_update_cb, app_identification_cb);
-    ABORT_APP_ON_FAILURE(node != nullptr, ESP_LOGE(TAG, "Failed to create Matter node"));
+    //ABORT_APP_ON_FAILURE(node != nullptr, ESP_LOGE(TAG, "Failed to create Matter node"));
 
     static OperationalStateDelegate operational_state_delegate;
 
@@ -189,7 +177,7 @@ extern "C" void app_main()
     dish_washer_config.operational_state.delegate = &operational_state_delegate; // Set to nullptr if not using a delegate
 
     endpoint_t *endpoint = dish_washer::create(node, &dish_washer_config, ENDPOINT_FLAG_NONE, NULL);
-    ABORT_APP_ON_FAILURE(endpoint != nullptr, ESP_LOGE(TAG, "Failed to create dishwasher endpoint"));
+    //ABORT_APP_ON_FAILURE(endpoint != nullptr, ESP_LOGE(TAG, "Failed to create dishwasher endpoint"));
 
     // OperationalState is a mandatory cluster for the dishwasher endpoint.
     // The countdown time attribute is optional, so we must be add it to the cluster.
@@ -214,7 +202,7 @@ extern "C" void app_main()
     // dish_washer_mode_config.current_mode = DishwasherMode::ModeNormal;
 
     esp_matter::cluster_t *dish_washer_mode_cluster = esp_matter::cluster::dish_washer_mode::create(endpoint, &dish_washer_mode_config, CLUSTER_FLAG_SERVER);
-    ABORT_APP_ON_FAILURE(dish_washer_mode_cluster != nullptr, ESP_LOGE(TAG, "Failed to create dishwashermode cluster"));
+    //ABORT_APP_ON_FAILURE(dish_washer_mode_cluster != nullptr, ESP_LOGE(TAG, "Failed to create dishwashermode cluster"));
 
     esp_matter::cluster::mode_base::attribute::create_supported_modes(dish_washer_mode_cluster, NULL, 0, 0);
 
@@ -239,16 +227,16 @@ extern "C" void app_main()
     device_energy_management_config.device_energy_management.delegate = &device_energy_management_delegate;
 
     endpoint_t *device_energy_management_endpoint = esp_matter::endpoint::device_energy_management::create(node, &device_energy_management_config, ENDPOINT_FLAG_NONE, NULL);
-    ABORT_APP_ON_FAILURE(device_energy_management_endpoint != nullptr, ESP_LOGE(TAG, "Failed to create device energy management endpoint"));
+    //ABORT_APP_ON_FAILURE(device_energy_management_endpoint != nullptr, ESP_LOGE(TAG, "Failed to create device energy management endpoint"));
 
     device_energy_manager_endpoint_id = endpoint::get_id(device_energy_management_endpoint);
     ESP_LOGI(TAG, "Device Energy Manager created with endpoint_id %d", device_energy_manager_endpoint_id);
 
     err = StatusDisplayMgr().Init();
-    ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "StatusDisplay::Init() failed, err:%d", err));
+    //ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "StatusDisplay::Init() failed, err:%d", err));
 
     err = DishwasherMgr().Init();
-    ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "DishwasherMgr::Init() failed, err:%d", err));
+    //ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "DishwasherMgr::Init() failed, err:%d", err));
 
     app_driver_init();
 
@@ -268,7 +256,7 @@ extern "C" void app_main()
 
     /* Matter start */
     err = esp_matter::start(app_event_cb);
-    ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to start Matter, err:%d", err));
+    //ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to start Matter, err:%d", err));
 
 #if CONFIG_ENABLE_CHIP_SHELL
     esp_matter::console::diagnostics_register_commands();
