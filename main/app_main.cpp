@@ -15,7 +15,7 @@
 
 #include "app_priv.h"
 
-//#include <app/server/OnboardingCodesUtil.h>
+#include <setup_payload/OnboardingCodesUtil.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 #include <app-common/zap-generated/ids/Attributes.h> // For Attribute IDs
@@ -72,25 +72,25 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 
     case chip::DeviceLayer::DeviceEventType::kCommissioningWindowOpened:
     {
-        // ESP_LOGI(TAG, "Commissioning window opened");
+        ESP_LOGI(TAG, "Commissioning window opened");
 
-        // chip::RendezvousInformationFlags rendezvoudFlags = chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE);
+        chip::RendezvousInformationFlags rendezvoudFlags = chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE);
 
-        // chip::PayloadContents payload;
-        // GetPayloadContents(payload, rendezvoudFlags);
+        chip::PayloadContents payload;
+        GetPayloadContents(payload, rendezvoudFlags);
 
-        // char payloadBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
-        // chip::MutableCharSpan qrCode(payloadBuffer);
+        char payloadBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+        chip::MutableCharSpan qrCode(payloadBuffer);
 
-        // if (GetQRCode(qrCode, payload) == CHIP_NO_ERROR)
-        // {
-        //     ESP_LOGI(TAG,"Generated QR CODE [%d]: %s", qrCode.size(), qrCode.data());
-        //     StatusDisplayMgr().SetCommissioningCode(qrCode.data(), qrCode.size());
-        // }
-        // else
-        // {
-        //     ESP_LOGE(TAG, "Failed to generate the commissioning QR code");
-        // }
+        if (GetQRCode(qrCode, payload) == CHIP_NO_ERROR)
+        {
+            ESP_LOGI(TAG,"Generated QR CODE [%d]: %s", qrCode.size(), qrCode.data());
+            StatusDisplayMgr().SetCommissioningCode(qrCode.data(), qrCode.size());
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Failed to generate the commissioning QR code");
+        }
     }
         break;
 
