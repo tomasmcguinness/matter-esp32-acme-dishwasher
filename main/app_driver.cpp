@@ -160,7 +160,7 @@ static ModeBase::Instance *gDishwasherModeInstance = nullptr;
 CHIP_ERROR DishwasherModeDelegate::Init()
 {
     ESP_LOGI(TAG, "DishwasherModeDelegate::Init()");
-    //gDishwasherModeInstance = mInstance;
+    gDishwasherModeInstance = mInstance;
     return CHIP_NO_ERROR;
 }
 
@@ -276,12 +276,12 @@ void emberAfDishwasherModeClusterInitCallback(chip::EndpointId endpointId)
 
     VerifyOrDie(endpointId == 1); // this cluster is only enabled for endpoint 1.
     VerifyOrDie(gDishwasherModeDelegate == nullptr && gDishwasherModeInstance == nullptr);
-    
+
     gDishwasherModeDelegate = new DishwasherMode::DishwasherModeDelegate;
 
     // TODO Restore the deadfront support by setting the OnOff feature.
     // gDishwasherModeInstance = new ModeBase::Instance(gDishwasherModeDelegate, 0x1, DishwasherMode::Id, chip::to_underlying(chip::app::Clusters::DishwasherMode:: ::Feature::kOnOff));
-    
+
     gDishwasherModeInstance = new ModeBase::Instance(gDishwasherModeDelegate, endpointId, DishwasherMode::Id, 0);
     gDishwasherModeInstance->Init();
 
@@ -372,7 +372,7 @@ OptOutStateEnum DeviceEnergyManagementDelegate::GetOptOutState()
 void DeviceEnergyManagementDelegate::SetOptOutState(OptOutStateEnum state)
 {
     mOptOutState = state;
-    //MatterReportingAttributeChangeCallback(DeviceEnergyManagementDelegate::mEndpointId, DeviceEnergyManagement::Id, DeviceEnergyManagement::Attributes::OptOutState::Id);
+    MatterReportingAttributeChangeCallback(DeviceEnergyManagementDelegate::mEndpointId, DeviceEnergyManagement::Id, DeviceEnergyManagement::Attributes::OptOutState::Id);
 }
 
 CHIP_ERROR DeviceEnergyManagementDelegate::SetESAState(ESAStateEnum newValue)
@@ -422,7 +422,7 @@ CHIP_ERROR DeviceEnergyManagementDelegate::SetForecast(const chip::app::DataMode
 
     mForecast = forecast;
 
-    //MatterReportingAttributeChangeCallback(DeviceEnergyManagementDelegate::mEndpointId, DeviceEnergyManagement::Id, DeviceEnergyManagement::Attributes::Forecast::Id);
+    MatterReportingAttributeChangeCallback(DeviceEnergyManagementDelegate::mEndpointId, DeviceEnergyManagement::Id, DeviceEnergyManagement::Attributes::Forecast::Id);
 
     return CHIP_NO_ERROR;
 }
@@ -430,21 +430,15 @@ CHIP_ERROR DeviceEnergyManagementDelegate::SetForecast(const chip::app::DataMode
 void emberAfDeviceEnergyManagementClusterInitCallback(chip::EndpointId endpointId)
 {
     ESP_LOGI(TAG, "emberAfDeviceEnergyManagerClusterInitCallback()");
+}
 
-    // VerifyOrDie(endpointId == 1); // this cluster is only enabled for endpoint 1.
-    // VerifyOrDie(gOperationalStateInstance == nullptr && gOperationalStateDelegate == nullptr);
+//************************
+//* DEAD FRONT BEHAVIOUR *
+//************************
 
-    // gOperationalStateDelegate = new OperationalStateDelegate;
-    // gOperationalStateInstance = new OperationalState::Instance(gOperationalStateDelegate, endpointId);
-
-    // gOperationalStateInstance->SetOperationalState(to_underlying(OperationalState::OperationalStateEnum::kStopped));
-    // gOperationalStateInstance->SetCurrentPhase(0);
-
-    // gOperationalStateInstance->Init();
-
-    // uint8_t value = to_underlying(OperationalStateEnum::kStopped);
-    // gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::OperationalState::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), &value);
-    // gOperationalStateDelegate->PostAttributeChangeCallback(chip::app::Clusters::OperationalState::Attributes::CurrentPhase::Id, ZCL_INT8U_ATTRIBUTE_TYPE, sizeof(uint8_t), 0);
+void emberAfOnOffClusterInitCallback(EndpointId endpoint)
+{
+    ESP_LOGI(TAG, "emberAfOnOffClusterInitCallback()");
 }
 
 //***********

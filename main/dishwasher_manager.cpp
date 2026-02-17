@@ -98,6 +98,15 @@ void DishwasherManager::TogglePower()
 void DishwasherManager::TurnOnPower()
 {
     mIsPoweredOn = true;
+    
+    // TODO Yikes. Don't hardcode the dishwasher endpoint 1.
+    esp_matter::attribute_t *attribute = esp_matter::attribute::get(1, OnOff::Id, OnOff::Attributes::OnOff::Id);
+
+    esp_matter_attr_val_t val = esp_matter_invalid(NULL);
+    esp_matter::attribute::get_val(attribute, &val);
+    val.val.b = true;
+    esp_matter::attribute::update(1, OnOff::Id, OnOff::Attributes::OnOff::Id, &val);
+
     StatusDisplayMgr().TurnOn();
     UpdateDishwasherDisplay();
 }
@@ -105,6 +114,15 @@ void DishwasherManager::TurnOnPower()
 void DishwasherManager::TurnOffPower()
 {
     mIsPoweredOn = false;
+
+    // TODO Yikes. Don't hardcode the dishwasher endpoint 1.
+    esp_matter::attribute_t *attribute = esp_matter::attribute::get(1, OnOff::Id, OnOff::Attributes::OnOff::Id);
+
+    esp_matter_attr_val_t val = esp_matter_invalid(NULL);
+    esp_matter::attribute::get_val(attribute, &val);
+    val.val.b = false;
+    esp_matter::attribute::update(1, OnOff::Id, OnOff::Attributes::OnOff::Id, &val);
+
     StopProgram();
     StatusDisplayMgr().TurnOff();
 }
@@ -139,13 +157,26 @@ void DishwasherManager::StartProgram()
 {
     gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, true);
     ESP_LOGI(TAG, "Applied power to LED");
-    
+
     mIsProgramSelected = true;
 
     // 30 minutes in seconds = 1800
     // 60 minutes in seconds = 3600
     // 90 minutes in seconds = 5400
-    mRunningTimeSecondsRemaining = 1800 + (mMode * 1800);
+    switch (mMode)
+    {
+    case 0: // Eco
+        mRunningTimeSecondsRemaining = 5400;
+        break;
+    case 1: // Chef
+        mRunningTimeSecondsRemaining = 3600;
+        break;
+    case 2: // Quick
+        mRunningTimeSecondsRemaining = 1800;
+        break;
+    }
+
+    // Start at the beginning
     mPhase = 0;
 
     UpdateCurrentPhase(mPhase);
@@ -177,7 +208,7 @@ void DishwasherManager::StartProgram()
 
     if (mOptedIntoEnergyManagement)
     {
-        mDelayedStartTimeRemaining = 60; // Start in one minute to allow for optimisation
+        mDelayedStartTimeRemaining = 60; // Delay the start by one minute to allow for optimisation
     }
     else
     {
@@ -243,9 +274,9 @@ void DishwasherManager::StartProgram()
         slot_count = 3;
     }
 
-    // sForecastStruct.slots = DataModel::List<DeviceEnergyManagement::Structs::SlotStruct::Type>(sSlots, slot_count);
+    sForecastStruct.slots = DataModel::List<DeviceEnergyManagement::Structs::SlotStruct::Type>(sSlots, slot_count);
 
-    // SetForecast();
+    SetForecast();
 }
 
 void DishwasherManager::AdjustStartTime(uint32_t new_start_time)
@@ -287,7 +318,7 @@ void DishwasherManager::StopProgram()
 {
     gpio_set_level((gpio_num_t)PIN_NUM_INDICATOR_LED, false);
     ESP_LOGI(TAG, "Removed power to LED");
-    
+
     mIsProgramSelected = false;
     mDelayedStartTimeRemaining = 0;
     mRunningTimeSecondsRemaining = 0;
@@ -295,7 +326,7 @@ void DishwasherManager::StopProgram()
     UpdateCurrentPhase(0);
     UpdateMode(0);
     UpdateOperationState(OperationalStateEnum::kStopped);
-    //ClearForecast();
+    ClearForecast();
 }
 
 void DishwasherManager::EndProgram()
@@ -445,7 +476,7 @@ void DishwasherManager::ProgressProgram()
 
             UpdateCurrentPhase(current_phase);
 
-            mRunningTimeMinutesRemaining = mRunningTimeSecondsRemaining/60;
+            mRunningTimeMinutesRemaining = mRunningTimeSecondsRemaining / 60;
 
             DishwasherMgr().UpdateDishwasherDisplay();
         }
@@ -631,7 +662,7 @@ void DishwasherManager::SelectPreviousMode()
         return;
     }
 
-      ESP_LOGI(TAG, "SelectPreviousMode called!");
+    ESP_LOGI(TAG, "SelectPreviousMode called!");
 
     if (mState != OperationalStateEnum::kStopped)
     {

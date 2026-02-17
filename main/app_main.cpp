@@ -210,11 +210,11 @@ extern "C" void app_main()
 
     // Add the On/Off cluster to the dishwasher endpoint and mark it with the dead front behavior feature.
     //
-    // esp_matter::cluster::on_off::config_t on_off_config;
-    // on_off_config.on_off = false; // Initial state of the On/Off cluster
-    // esp_matter::cluster_t *on_off_cluster = esp_matter::cluster::on_off::create(endpoint, &on_off_config, CLUSTER_FLAG_SERVER);
-
-    // esp_matter::cluster::on_off::feature::dead_front_behavior::add(on_off_cluster);
+    esp_matter::cluster::on_off::config_t on_off_config;
+    on_off_config.on_off = false; // Initial state of the On/Off cluster
+    esp_matter::cluster_t *on_off_cluster = esp_matter::cluster::on_off::create(endpoint, &on_off_config, CLUSTER_FLAG_SERVER);
+    esp_matter::cluster::on_off::command::create_on(on_off_cluster);
+    esp_matter::cluster::on_off::feature::dead_front_behavior::add(on_off_cluster);
 
     dish_washer_endpoint_id = endpoint::get_id(endpoint);
     ESP_LOGI(TAG, "Dishwasher created with endpoint_id %d", dish_washer_endpoint_id);
@@ -223,7 +223,8 @@ extern "C" void app_main()
      * Add DeviceEnergyManagement
      */
     esp_matter::endpoint::device_energy_management::config_t device_energy_management_config;
-    // device_energy_management_config.device_energy_management.feature_flags = esp_matter::cluster::device_energy_management::feature::power_forecast_reporting::get_id() | esp_matter::cluster::device_energy_management::feature::start_time_adjustment::get_id();
+    // TODO Restore feature flags
+    //device_energy_management_config.device_energy_management.feature_flags = esp_matter::cluster::device_energy_management::feature::power_forecast_reporting::get_id() | esp_matter::cluster::device_energy_management::feature::start_time_adjustment::get_id();
     device_energy_management_config.device_energy_management.delegate = &device_energy_management_delegate;
 
     endpoint_t *device_energy_management_endpoint = esp_matter::endpoint::device_energy_management::create(node, &device_energy_management_config, ENDPOINT_FLAG_NONE, NULL);
