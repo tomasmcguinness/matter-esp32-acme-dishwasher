@@ -352,6 +352,7 @@ void DishwasherManager::UpdateDishwasherDisplay()
 
     char state_text[32]{};
     char mode_text[10]{};
+    char phase_text[16]{};
     char status_text[32]{};
 
     switch (mState)
@@ -398,14 +399,13 @@ void DishwasherManager::UpdateDishwasherDisplay()
 
         if (operational_state_delegate != nullptr)
         {
-            char status_buffer[64];
-            MutableCharSpan label(status_buffer);
-
+            MutableCharSpan label(phase_text);
             operational_state_delegate->GetOperationalPhaseAtIndex(mPhase, label);
+            phase_text[label.size()] = '\0';
         }
     }
 
-    StatusDisplayMgr().UpdateDisplay(mIsShowingMenu, mOptedIntoEnergyManagement, mIsProgramSelected, mDelayedStartTimeRemaining, mRunningTimeMinutesRemaining, state_text, mode_text);
+    StatusDisplayMgr().UpdateDisplay(mIsShowingMenu, mOptedIntoEnergyManagement, mIsProgramSelected, mDelayedStartTimeRemaining, mRunningTimeMinutesRemaining, state_text, mode_text, phase_text);
 
     // TODO Clean up the memory!
     //

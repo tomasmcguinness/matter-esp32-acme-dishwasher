@@ -190,6 +190,16 @@ esp_err_t StatusDisplay::Init()
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
 
+    mPhaseLabel = lv_label_create(scr);
+    lv_label_set_text(mPhaseLabel, "");
+    lv_obj_set_width(mPhaseLabel, 300);
+    lv_obj_align(mPhaseLabel, LV_ALIGN_LEFT_MID, 20, 50);
+    lv_obj_set_style_text_color(mPhaseLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_add_style(mPhaseLabel, &medium_style, LV_PART_MAIN);
+    lv_obj_add_flag(mPhaseLabel, LV_OBJ_FLAG_HIDDEN);
+
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+
     mStatusLabel = lv_label_create(scr);
 
     lv_label_set_text(mStatusLabel, "");
@@ -294,6 +304,7 @@ void StatusDisplay::TurnOff()
     lv_obj_clear_flag(mQRCode, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(mPhaseLabel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(mMenuButtonLabel, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_clear_flag(mOnOffButtonLabel, LV_OBJ_FLAG_HIDDEN);
@@ -308,7 +319,7 @@ void StatusDisplay::TurnOff()
     mScreenOn = false;
 }
 
-void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t timeRemaining, char state_text[32], char mode_text[10])
+void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t timeRemaining, char state_text[32], char mode_text[10], char phase_text[16])
 {
     ESP_LOGI(TAG, "Updating the display");
 
@@ -327,8 +338,9 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
     bool hasTimeRemainingChanged = mTimeRemaining != timeRemaining;
     bool hasStateTextChanged = strcmp(mStateText, state_text) != 0;
     bool hasModeTextChanged = strcmp(mModeText, mode_text) != 0;
+    bool hasPhaseTextChanged = strcmp(mPhaseText, phase_text) != 0;
 
-    shouldRefresh = hasMenuChanged || hasTimeRemainingChanged || hasStateTextChanged || hasModeTextChanged;
+    shouldRefresh = hasMenuChanged || hasTimeRemainingChanged || hasStateTextChanged || hasModeTextChanged || hasPhaseTextChanged;
 
     ESP_LOGI(TAG, "hasMenuChanged: [%d]", hasMenuChanged);
     ESP_LOGI(TAG, "hasTimeRemainingChanged: [%d]", hasTimeRemainingChanged);
@@ -378,6 +390,7 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
         lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(mPhaseLabel, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(mStartsInLabel, LV_OBJ_FLAG_HIDDEN);
     }
@@ -403,6 +416,7 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
                 lv_obj_add_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(mPhaseLabel, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
 
                 char *starts_in_formatted_buffer = (char *)malloc(22);
@@ -420,9 +434,12 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
 
                 lv_obj_clear_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
-                
+
                 lv_label_set_text(mStateLabel, state_text);
                 lv_label_set_text(mModeLabel, mode_text);
+
+                lv_label_set_text(mPhaseLabel, phase_text);
+                lv_obj_clear_flag(mPhaseLabel, LV_OBJ_FLAG_HIDDEN);
 
                 if(timeRemaining == 0) 
                 {
@@ -453,6 +470,7 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
         {
             lv_obj_clear_flag(mStateLabel, LV_OBJ_FLAG_HIDDEN);
             lv_obj_clear_flag(mModeLabel, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(mPhaseLabel, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(mStatusLabel, LV_OBJ_FLAG_HIDDEN);
 
             lv_obj_add_flag(mStartsInLabel, LV_OBJ_FLAG_HIDDEN);
@@ -468,6 +486,7 @@ void StatusDisplay::UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProg
     mTimeRemaining = timeRemaining;
     memcpy(mStateText, state_text, 32);
     memcpy(mModeText, mode_text, 10);
+    memcpy(mPhaseText, phase_text, 16);
 
     if (shouldRefresh)
     {

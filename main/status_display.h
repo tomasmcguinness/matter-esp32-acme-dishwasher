@@ -28,7 +28,7 @@ public:
     void TurnOn();
     void TurnOff();
 
-    void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t runningTimeRemaining, char state_text[32], char mode_text[10]);
+    void UpdateDisplay(bool showingMenu, bool hasOptedIn, bool isProgramSelected, uint8_t startsInMinutes, uint8_t runningTimeRemaining, char state_text[32], char mode_text[10], char phase_text[16]);
 
     void ShowResetOptions();
     void HideResetOptions();
@@ -51,6 +51,7 @@ private:
     lv_obj_t *mStateLabel;
     lv_obj_t *mSelectedProgramLabel;
     lv_obj_t *mModeLabel;
+    lv_obj_t *mPhaseLabel;
     lv_obj_t *mStartsInLabel;
     lv_obj_t *mMenuButtonLabel;
     lv_obj_t *mMenuHeaderLabel;
@@ -62,6 +63,7 @@ private:
     uint8_t mTimeRemaining = 0;
     char mStateText[32];
     char mModeText[15];
+    char mPhaseText[16];
 };
 
 inline StatusDisplay & StatusDisplayMgr(void)
